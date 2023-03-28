@@ -4,6 +4,7 @@
 
 
 project_base
+program_state.txt
 
 ### bin ###
 bin/
