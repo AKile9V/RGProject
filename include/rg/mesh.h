@@ -30,6 +30,7 @@ public:
     std::vector<unsigned int> indices;
     std::vector<Texture> textures;
 
+    // todo: std::move?
     Mesh(const std::vector<Vertex>& vs, const std::vector<unsigned int>& ind,
          const std::vector<Texture>& tex)
          : vertices(vs)

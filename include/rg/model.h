@@ -7,6 +7,7 @@
 #include <stb_image.h>
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <learnopengl/shader.h>
 #include <rg/mesh.h>
 
@@ -17,7 +18,8 @@
 class Model {
 public:
     std::vector<Mesh> meshes;
-    std::vector<Texture> loaded_textures;
+//    std::vector<Texture> loaded_textures;
+    std::unordered_map<std::string, Texture> loaded_textures_map;
 
     std::string directory;
     Model(std::string path) {
@@ -124,14 +126,18 @@ private:
             mat->GetTexture(type, i, &str);
 
             bool skip = false;
-
-            for (unsigned int j = 0; j < loaded_textures.size(); ++j) {
-                if (std::strcmp(str.C_Str(), loaded_textures[j].path.c_str()) == 0) {
-                    textures.push_back(loaded_textures[j]);
-                    skip = true;
-                    break;
-                }
+            auto it = loaded_textures_map.find(str.C_Str());
+            if(it != loaded_textures_map.end()) {
+                skip = true;
+                textures.push_back(it->second);
             }
+//            for (unsigned int j = 0; j < loaded_textures.size(); ++j) {
+//                if (std::strcmp(str.C_Str(), loaded_textures[j].path.c_str()) == 0) {
+//                    textures.push_back(loaded_textures[j]);
+//                    skip = true;
+//                    break;
+//                }
+//            }
 
             if (!skip) {
                 Texture texture;
@@ -139,7 +145,8 @@ private:
                 texture.type = typeName;
                 texture.path = str.C_Str();
                 textures.push_back(texture);
-                loaded_textures.push_back(texture);
+//                loaded_textures.push_back(texture);
+                loaded_textures_map[str.C_Str()] = texture;
             }
         }
 

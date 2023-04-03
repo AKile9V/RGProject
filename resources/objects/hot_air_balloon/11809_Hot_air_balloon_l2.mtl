@@ -1,0 +1,93 @@
+# 3ds Max Wavefront OBJ Exporter v0.97b - (c)2007 guruware
+# File Created: 28.11.2011 13:37:41
+
+newmtl 11809_Hot_air_balloon_Basket
+	Ns 46.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.5400 0.5400 0.5400
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 11809_Hot_air_balloon_Basket_diff.jpg
+	map_Kd 11809_Hot_air_balloon_Basket_diff.jpg
+	map_Ks 11809_Hot_air_balloon_Basket_spec.jpg
+	map_bump Map__11_Normal Bump.jpg
+
+newmtl 11809_Hot_air_balloon_Support
+	Ns 50.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.2970 0.2970 0.2970
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 11809_Hot_air_balloon_Basket_support_diff.jpg
+	map_Kd 11809_Hot_air_balloon_Basket_support_diff.jpg
+	map_Ks 11809_Hot_air_balloon_Basket_support_spec.jpg
+	map_refl 11809_Hot_air_balloon_refl.jpg
+
+newmtl 11809_Hot_air_balloon_Floor
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 11809_Hot_air_balloon_Floor_diff.jpg
+	map_Kd 11809_Hot_air_balloon_Floor_diff.jpg
+
+newmtl 11809_Hot_air_balloon_Burner
+	Ns 31.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.5400 0.5400 0.5400
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 11809_Hot_air_balloon_Burner_diff.jpg
+	map_Kd 11809_Hot_air_balloon_Burner_diff.jpg
+	map_Ks 11809_Hot_air_balloon_Burner_spec.jpg
+	map_bump Map__15_Normal Bump.jpg
+
+newmtl 11809_Hot_air_balloon_Balloon
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 11809_Hot_air_balloon_Hot_air_balloon_diff.jpg
+	map_Kd 11809_Hot_air_balloon_Hot_air_balloon_diff.jpg
+	map_bump Map__17_Normal Bump.jpg
+
+newmtl 11809_Hot_air_balloon_top
+	Ns 10.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 1.0000 1.0000 1.0000
+	Kd 1.0000 1.0000 1.0000
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka 11809_Hot_air_balloon_Baloon_top_diff.jpg
+	map_Kd 11809_Hot_air_balloon_Baloon_top_diff.jpg
