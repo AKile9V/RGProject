@@ -42,13 +42,12 @@ public:
 
     unsigned int VAO;
     std::string glslIdentifierPrefix;
-    // constructor
+    // constructor todo: std::move?
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
+    :vertices(vertices),
+    indices(indices),
+    textures(textures)
     {
-        this->vertices = vertices;
-        this->indices = indices;
-        this->textures = textures;
-
         // now that we have all the required data, set the vertex buffers and its attribute pointers.
         setupMesh();
     }

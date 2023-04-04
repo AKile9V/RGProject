@@ -14,16 +14,14 @@
 #include <learnopengl/camera.h>
 #include <learnopengl/model.h>
 
+#include "rg/SimpleModel.h"
+
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
-
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
-
 void processInput(GLFWwindow *window);
-
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
 // settings
@@ -46,12 +44,11 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    // glfw window creation
+    // glfw window creation                                                                              full screen
     GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", glfwGetPrimaryMonitor(), NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -87,55 +84,66 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     // build and compile shaders
-    Shader ourShader("resources/shaders/coordshader.vs", "resources/shaders/coordshader.fs");
-    Shader balloonShader("resources/shaders/balloonshader.vs", "resources/shaders/balloonshader.fs");
+    Shader axisShader("resources/shaders/axisshader.vs", "resources/shaders/axisshader.fs");
+    Shader airBalloonShader("resources/shaders/airballoonshader.vs", "resources/shaders/airballoonshader.fs");
+    Shader grassPlaneShader("resources/shaders/grassplaneshader.vs", "resources/shaders/grassplaneshader.fs");
 
-    // models
+    // models:
+    // hot air balloon
     Model hot_air_balloon("resources/objects/hot_air_balloon/11809_Hot_air_balloon_l2.obj");
 
-    float vertices[] = {
+    // simple models:
+    // axis
+    std::vector<float> vertices = {
+            // redline
             -4.f, 0.f, 0.f, 1.f, 0.f, 0.f,
             4.f, 0.f, 0.f, 1.f, 0.f, 0.f,
+            // redarrow
             4.0, 0.0f, 0.0f, 1.f, 0.f, 0.f,
             3.6, .2f, 0.0f,1.f, 0.f, 0.f,
             4.0, 0.0f, 0.0f, 1.f, 0.f, 0.f,
             3.6, -.2f, 0.0f,1.f, 0.f, 0.f,
-
+            // greenline
             .0f, -4.f, 0.f, .0f, 1.f, 0.f,
             .0f, 4.f, 0.f, .0f, 1.f, 0.f,
+            // greenarrow
             0.0f, 4.0f, 0.0f, .0f, 1.f, 0.f,
             0.2f, 3.6f, 0.0f, .0f, 1.f, 0.f,
             0.0f, 4.0f, 0.0f, .0f, 1.f, 0.f,
             -0.2f, 3.6f, 0.0f, .0f, 1.f, 0.f,
-
+            // blueline
             .0f, 0.f, -4.f, .0f, 0.f, 1.f,
             .0f, 0.f, 4.f, .0f, 0.f, 1.f,
+            // bluearrow
             0.0f, 0.0f ,4.0f, .0f, 0.f, 1.f,
             0.0f, 0.2f ,3.6f, .0f, 0.f, 1.f,
             0.0f, 0.0f ,4.0f, .0f, 0.f, 1.f,
             0.0f, -0.2f ,3.6f, .0f, 0.f, 1.f,
     };
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    SimpleModel axisSModel(vertices,true);
 
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // grass plane
+    std::vector<float> grass_plane_vertices = {
+            // positions            // normals         // texcoords
+            10.0f, -0.5f,  10.0f,  0.0f, 1.0f, 0.0f,  10.0f,  0.0f,
+            -10.0f, -0.5f,  10.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+            -10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 10.0f,
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+            10.0f, -0.5f,  10.0f,  0.0f, 1.0f, 0.0f,  10.0f,  0.0f,
+            -10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 10.0f,
+            10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,  10.0f, 10.0f
+    };
+    SimpleModel grassSModel(grass_plane_vertices, true, true);
+    grassSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
+    // projection (most of the time there's no need to change projection, no need to be in the render loop)
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-    ourShader.use();
-    ourShader.setMat4("projection", projection);
-    balloonShader.use();
-    balloonShader.setMat4("projection", projection);
+    axisShader.use();
+    axisShader.setMat4("projection", projection);
+    airBalloonShader.use();
+    airBalloonShader.setMat4("projection", projection);
+    grassPlaneShader.use();
+    grassPlaneShader.setMat4("projection", projection);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -151,23 +159,25 @@ int main() {
 
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
-        ourShader.use();
-        ourShader.setMat4("view", view);
-        // don't forget to enable shader before setting uniforms
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_LINES, 0, 18);
 
-        balloonShader.use();
-        balloonShader.setMat4("view", view);
+        // drawing grass plane model
+        grassPlaneShader.use();
+        grassPlaneShader.setMat4("view", view);
+        grassSModel.Draw(GL_TRIANGLES);
 
+        // drawing axis model
+        axisShader.use();
+        axisShader.setMat4("view", view);
+        axisSModel.Draw(GL_LINES);
 
-        // render air_balloon
+        // drawing balloon model
+        airBalloonShader.use();
+        airBalloonShader.setMat4("view", view);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.0f, .0f, 0.0f));
         model = glm::scale(model, glm::vec3(.0009f, .0009f, 0.0007f));
-        balloonShader.setMat4("model", model);
-        hot_air_balloon.Draw(balloonShader);
-
+        airBalloonShader.setMat4("model", model);
+        hot_air_balloon.Draw(airBalloonShader);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         glfwSwapBuffers(window);
@@ -225,5 +235,4 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 }
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-
 }
