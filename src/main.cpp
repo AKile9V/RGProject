@@ -28,15 +28,29 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-// camera
-Camera camera(glm::vec3(.5f, 0.8f, 10.0f));
-float lastX = SCR_WIDTH / 2.0f;
-float lastY = SCR_HEIGHT / 2.0f;
-bool firstMouse = true;
-
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+struct ProgramState {
+    // camera options
+    Camera camera;
+    bool firstMouse = true;
+    float lastX = SCR_WIDTH / 2.0f;
+    float lastY = SCR_HEIGHT / 2.0f;
+
+    // air_balloon
+    glm::vec3 airBalloonPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+    float airBalloonUp = 0.0f;
+    float airBalloonAngle = -90.f;
+    float MAX_AIRB_ANGLE = 75.f;
+    glm::vec3 airBalloonRotation = glm::vec3(1.0f, .0f, 0.0f);
+
+    ProgramState()
+            : camera(glm::vec3(.5f, .8f, 5.0f)) {}
+
+};
+ProgramState *programState;
 
 int main() {
     // glfw: initialize and configure
@@ -49,7 +63,7 @@ int main() {
 #endif
 
     // glfw window creation                                                                              full screen
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", glfwGetPrimaryMonitor(), NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL/*glfwGetPrimaryMonitor()*/, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -71,6 +85,9 @@ int main() {
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
+
+    //
+    programState = new ProgramState;
 
     // Init Imgui
     IMGUI_CHECKVERSION();
@@ -125,13 +142,13 @@ int main() {
     // grass plane
     std::vector<float> grass_plane_vertices = {
             // positions            // normals         // texcoords
-            10.0f, -0.5f,  10.0f,  0.0f, 1.0f, 0.0f,  10.0f,  0.0f,
-            -10.0f, -0.5f,  10.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
-            -10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 10.0f,
+            10.0f, 0.0f,  10.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+            -10.0f, 0.0f,  10.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+            -10.0f, 0.0f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
 
-            10.0f, -0.5f,  10.0f,  0.0f, 1.0f, 0.0f,  10.0f,  0.0f,
-            -10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 10.0f,
-            10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,  10.0f, 10.0f
+            10.0f, 0.0f,  10.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+            -10.0f, 0.0f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+            10.0f, 0.0f, -10.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
     };
     SimpleModel grassSModel(grass_plane_vertices, true, true);
     grassSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
@@ -157,7 +174,7 @@ int main() {
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 view = programState->camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
         // drawing grass plane model
@@ -173,11 +190,13 @@ int main() {
         // drawing balloon model
         airBalloonShader.use();
         airBalloonShader.setMat4("view", view);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.0f, .0f, 0.0f));
+        model = glm::translate(model, programState->airBalloonPosition);
+        model = glm::rotate(model, glm::radians(programState->airBalloonAngle), programState->airBalloonRotation);
         model = glm::scale(model, glm::vec3(.0009f, .0009f, 0.0007f));
         airBalloonShader.setMat4("model", model);
         hot_air_balloon.Draw(airBalloonShader);
+        programState->airBalloonAngle += programState->airBalloonAngle >=-90.f ? -0.04 : 0.04;
+        programState->airBalloonRotation.z += programState->airBalloonRotation.z >= 0.f ? -0.001 : 0.001;
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         glfwSwapBuffers(window);
@@ -197,13 +216,54 @@ void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
+    {
+        programState->camera.ProcessKeyboard(FORWARD, deltaTime);
+
+        if (programState->airBalloonAngle < -programState->MAX_AIRB_ANGLE)
+        {
+            programState->airBalloonAngle += 0.1;
+        }
+        programState->airBalloonPosition.z -= 0.005;
+    }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    {
+        programState->camera.ProcessKeyboard(BACKWARD, deltaTime);
+        if(programState->airBalloonAngle > -programState->MAX_AIRB_ANGLE-25.f)
+        {
+            programState->airBalloonAngle -= 0.1;
+        }
+        programState->airBalloonPosition.z += 0.003;
+    }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);
+    {
+        programState->camera.ProcessKeyboard(LEFT, deltaTime);
+        if(programState->airBalloonRotation.z < 0.3)
+        {
+            programState->airBalloonRotation.z += 0.002;
+        }
+        programState->airBalloonPosition.x -= 0.003;
+    }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime);
+    {
+        programState->camera.ProcessKeyboard(RIGHT, deltaTime);
+        if(programState->airBalloonRotation.z > -0.3)
+        {
+            programState->airBalloonRotation.z -= 0.002;
+        }
+        programState->airBalloonPosition.x += 0.003;
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    {
+        programState->airBalloonUp += 0.01f;
+        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/3;
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    {
+        programState->airBalloonUp = programState->airBalloonUp>=0 ? programState->airBalloonUp-0.01 : 0.0f;
+        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/3;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -215,23 +275,23 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 
 // glfw: whenever the mouse moves, this callback is called
 void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
-    if (firstMouse) {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
+    if (programState->firstMouse) {
+        programState->lastX = xpos;
+        programState->lastY = ypos;
+        programState->firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float xoffset = xpos - programState->lastX;
+    float yoffset = programState->lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-    lastX = xpos;
-    lastY = ypos;
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    programState->lastX = xpos;
+    programState->lastY = ypos;
+    programState->camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    camera.ProcessMouseScroll(yoffset);
+    programState->camera.ProcessMouseScroll(yoffset);
 }
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
