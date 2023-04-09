@@ -92,9 +92,10 @@ int main() {
 
     // default ProgramState setup
     programState = new ProgramState;
-    fps_camera = new FPSCamera(glm::vec3(.5f, .8f, 3.0f));
-    tpp_camera = new TPPCamera(glm::vec3(.5f, .8f, 3.0f), programState->airBalloonPosition);
-    programState->camera = tpp_camera;
+    fps_camera = new FPSCamera(glm::vec3(.5f, .8f, -3.0f), glm::vec3(0.0f, 1.0f, 0.0f), 90.f);
+    tpp_camera = new TPPCamera(glm::vec3(.5f, .8f, 3.0f), programState->airBalloonPosition,
+                               glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
+    programState->camera = fps_camera;
 
 
     // Init Imgui
@@ -107,6 +108,7 @@ int main() {
 
     // configure global opengl state
     glEnable(GL_DEPTH_TEST);
+    glCullFace(GL_FRONT);
 
     // build and compile shaders
     Shader axisShader("resources/shaders/axisshader.vs", "resources/shaders/axisshader.fs");
@@ -181,8 +183,9 @@ int main() {
         // render
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         projection = glm::perspective(glm::radians(programState->camera->Distance), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+        // drawing axis
         axisShader.use();
         axisShader.setMat4("projection", projection);
         airBalloonShader.use();
@@ -193,9 +196,11 @@ int main() {
         glm::mat4 model = glm::mat4(1.0f);
 
         // drawing grass plane model
+        glEnable(GL_CULL_FACE);
         grassPlaneShader.use();
         grassPlaneShader.setMat4("view", view);
         grassSModel.Draw(GL_TRIANGLES);
+        glDisable(GL_CULL_FACE);
 
         // drawing axis model
         axisShader.use();

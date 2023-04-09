@@ -11,6 +11,7 @@ public:
     FPSCamera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH)
     : Camera(position, up, yaw, pitch)
     {
+        Distance = 35.f;
         glm::vec3 front;
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
@@ -23,6 +24,7 @@ public:
     FPSCamera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
     : Camera(posX, posY, posZ, upX, upY, upZ, yaw, pitch)
     {
+        Distance = 35.f;
         glm::vec3 front;
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));

@@ -25,7 +25,7 @@ public:
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 GetViewMatrix() override
     {
-        return glm::lookAt(Position, Target, Up);
+        return glm::lookAt(Position, Target+glm::vec3(0.f, .7f, 0.f), Up);
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -42,8 +42,8 @@ public:
         {
             if (Pitch > 44.0f)
                 Pitch = 44.0f;
-            if (Pitch < -5.0f)
-                Pitch = -5.0f;
+            if (Pitch < -50.0f)
+                Pitch = -50.0f;
         }
 
         // update Front, Right and Up Vectors using the updated Euler angles
@@ -66,7 +66,6 @@ public:
     void updateCameraVectors(glm::vec3 target) override
     {
         Target = target;
-        Target.y += 0.7f;
         // calculate the new Front vector
         glm::vec3 pos;
         pos.x = Distance * cos(glm::radians(Yaw)) * cos(glm::radians(Pitch)) + Target.x;
