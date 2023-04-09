@@ -44,7 +44,6 @@ public:
                 Pitch = 44.0f;
             if (Pitch < -5.0f)
                 Pitch = -5.0f;
-            std::cout << Pitch << std::endl;
         }
 
         // update Front, Right and Up Vectors using the updated Euler angles

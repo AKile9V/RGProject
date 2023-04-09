@@ -65,19 +65,16 @@ public:
     virtual glm::mat4 GetViewMatrix() = 0;
 
     virtual void ProcessKeyboard(Camera_Movement direction, float deltaTime) {
-        std::cout << "keyboard" << std::endl;
     };
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
     virtual void ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
     {
-        std::cout << "mouse" << std::endl;
     }
 
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     virtual void ProcessMouseScroll(float yoffset)
     {
-        std::cout << "scroll" << std::endl;
     }
 
     // calculates the front vector from the Camera's (updated) Euler Angles

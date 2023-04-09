@@ -241,12 +241,10 @@ void processInput(GLFWwindow *window) {
         }
         if(programState->TurnAngle > 0.f)
         {
-            std::cout << programState->TurnAngle << std::endl;
             programState->TurnAngle -= .5f;
         }
         if(programState->TurnAngle < 0.f)
         {
-            std::cout << programState->TurnAngle << std::endl;
             programState->TurnAngle += .5f;
         }
         programState->airBalloonPosition.z += 0.003f;
@@ -271,7 +269,6 @@ void processInput(GLFWwindow *window) {
             programState->airBalloonRotation.z -= 0.002f;
             if(programState->TurnAngle < 90.f)
             {
-                std::cout << programState->TurnAngle << std::endl;
                 programState->TurnAngle += .5f;
             }
         }
@@ -287,7 +284,6 @@ void processInput(GLFWwindow *window) {
             programState->airBalloonRotation.z += 0.002f;
             if(programState->TurnAngle > -90.f)
             {
-                std::cout << programState->TurnAngle << std::endl;
                 programState->TurnAngle -= .5f;
             }
         }
