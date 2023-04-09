@@ -95,7 +95,7 @@ int main() {
     fps_camera = new FPSCamera(glm::vec3(.5f, .8f, -3.0f), glm::vec3(0.0f, 1.0f, 0.0f), 90.f);
     tpp_camera = new TPPCamera(glm::vec3(.5f, .8f, 3.0f), programState->airBalloonPosition,
                                glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
-    programState->camera = fps_camera;
+    programState->camera = tpp_camera;
 
 
     // Init Imgui
@@ -121,33 +121,23 @@ int main() {
 
     // simple models:
     // axis
-    std::vector<float> vertices = {
-            // redline
-            -4.f, 0.f, 0.f, 1.f, 0.f, 0.f,
-            4.f, 0.f, 0.f, 1.f, 0.f, 0.f,
-            // redarrow
-            4.0, 0.0f, 0.0f, 1.f, 0.f, 0.f,
-            3.6, .2f, 0.0f,1.f, 0.f, 0.f,
-            4.0, 0.0f, 0.0f, 1.f, 0.f, 0.f,
-            3.6, -.2f, 0.0f,1.f, 0.f, 0.f,
-            // greenline
-            .0f, -4.f, 0.f, .0f, 1.f, 0.f,
-            .0f, 4.f, 0.f, .0f, 1.f, 0.f,
-            // greenarrow
-            0.0f, 4.0f, 0.0f, .0f, 1.f, 0.f,
-            0.2f, 3.6f, 0.0f, .0f, 1.f, 0.f,
-            0.0f, 4.0f, 0.0f, .0f, 1.f, 0.f,
-            -0.2f, 3.6f, 0.0f, .0f, 1.f, 0.f,
-            // blueline
-            .0f, 0.f, -4.f, .0f, 0.f, 1.f,
-            .0f, 0.f, 4.f, .0f, 0.f, 1.f,
-            // bluearrow
-            0.0f, 0.0f ,4.0f, .0f, 0.f, 1.f,
-            0.0f, 0.2f ,3.6f, .0f, 0.f, 1.f,
-            0.0f, 0.0f ,4.0f, .0f, 0.f, 1.f,
-            0.0f, -0.2f ,3.6f, .0f, 0.f, 1.f,
+    std::vector<float> axisVertices = {
+            // line
+            -4.f, 0.f, 0.f,
+            4.f, 0.f, 0.f,
+            // arrow
+            4.0, 0.0f, 0.0f,
+            3.6, .2f, 0.0f,
+            4.0, 0.0f, 0.0f,
+            3.6, -.2f, 0.0f,
     };
-    SimpleModel axisSModel(vertices,true);
+
+    std::vector<glm::vec3> axisColor = {
+            glm::vec3(1.f, 0.f, 0.f),
+            glm::vec3(0.f, 1.f, 0.f),
+            glm::vec3(0.f, 0.f, 1.f)
+    };
+    SimpleModel axisSModel(axisVertices);
 
     // grass plane
     std::vector<float> grass_plane_vertices = {
@@ -202,12 +192,20 @@ int main() {
         grassSModel.Draw(GL_TRIANGLES);
         glDisable(GL_CULL_FACE);
 
-        // drawing axis model
+        // drawing axis
+        model = glm::mat4(1.0f);
         axisShader.use();
         axisShader.setMat4("view", view);
-        axisSModel.Draw(GL_LINES);
+        for(int i=0; i<3; ++i)
+        {
+            model = glm::rotate(model, glm::radians(90.f), axisColor[i]);
+            axisShader.setMat4("model", model);
+            axisShader.setVec3("LineColor", axisColor[i]);
+            axisSModel.Draw(GL_LINES);
+        }
 
         // drawing balloon model
+        model = glm::mat4(1.0f);
         airBalloonShader.use();
         airBalloonShader.setMat4("view", view);
         model = glm::translate(model, programState->airBalloonPosition);
