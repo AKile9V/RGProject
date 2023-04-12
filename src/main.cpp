@@ -121,6 +121,7 @@ int main() {
     Shader axisShader("resources/shaders/axisshader.vs", "resources/shaders/axisshader.fs");
     Shader airBalloonShader("resources/shaders/airballoonshader.vs", "resources/shaders/airballoonshader.fs");
     Shader grassPlaneShader("resources/shaders/grassplaneshader.vs", "resources/shaders/grassplaneshader.fs");
+    Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
 
     // models:
     // hot air balloon
@@ -178,14 +179,72 @@ int main() {
         grass_translate.emplace_back(uniformDouble(dre), 0.f, uniformDouble(dre));
     }
 
+    // skybox
+    std::vector<float> skybox_vertices = {
+            // positions
+            -1.0f,  1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            -1.0f,  1.0f, -1.0f,
+            1.0f,  1.0f, -1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+            1.0f, -1.0f,  1.0f
+    };
+    vector<std::string> faces{
+                    FileSystem::getPath("resources/textures/skybox/right.jpg"),
+                    FileSystem::getPath("resources/textures/skybox/left.jpg"),
+                    FileSystem::getPath("resources/textures/skybox/top.jpg"),
+                    FileSystem::getPath("resources/textures/skybox/bottom.jpg"),
+                    FileSystem::getPath("resources/textures/skybox/front.jpg"),
+                    FileSystem::getPath("resources/textures/skybox/back.jpg")
+    };
+    SimpleModel skyboxSModel(skybox_vertices);
+    skyboxSModel.AddCubemaps(faces, "skybox", 0, skyboxShader);
+
     // projection
-    glm::mat4 projection = glm::perspective(glm::radians(programState->camera->Distance), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     axisShader.use();
     axisShader.setMat4("projection", projection);
     airBalloonShader.use();
     airBalloonShader.setMat4("projection", projection);
     grassPlaneShader.use();
     grassPlaneShader.setMat4("projection", projection);
+    skyboxShader.use();
+    skyboxShader.setMat4("projection", projection);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -198,15 +257,8 @@ int main() {
         // render
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        projection = glm::perspective(glm::radians(programState->camera->Distance), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
-        // projection
-        axisShader.use();
-        axisShader.setMat4("projection", projection);
-        airBalloonShader.use();
-        airBalloonShader.setMat4("projection", projection);
-        grassPlaneShader.use();
-        grassPlaneShader.setMat4("projection", projection);
         // view and model
         glm::mat4 view = programState->camera->GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
@@ -214,6 +266,7 @@ int main() {
         // drawing grass plane model
         glEnable(GL_CULL_FACE);
         grassPlaneShader.use();
+        grassPlaneShader.setMat4("projection", projection);
         grassPlaneShader.setMat4("view", view);
         grassPlaneShader.setMat4("model", model);
         grassPlaneSModel.Draw(GL_TRIANGLES);
@@ -227,12 +280,12 @@ int main() {
             model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
             grassPlaneShader.setMat4("model", model);
             grassSModel.Draw(GL_TRIANGLES);
-
         }
 
         // drawing axis
         model = glm::mat4(1.0f);
         axisShader.use();
+        axisShader.setMat4("projection", projection);
         axisShader.setMat4("view", view);
         for(int i=0; i<3; ++i)
         {
@@ -245,6 +298,7 @@ int main() {
         // drawing balloon model
         model = glm::mat4(1.0f);
         airBalloonShader.use();
+        airBalloonShader.setMat4("projection", projection);
         airBalloonShader.setMat4("view", view);
         model = glm::translate(model, programState->airBalloonPosition);
         model = glm::rotate(model, glm::radians(programState->airBalloonAngle), programState->airBalloonRotation);
@@ -254,6 +308,15 @@ int main() {
         hot_air_balloon.Draw(airBalloonShader);
         programState->airBalloonAngle += programState->airBalloonAngle >=-90.f ? -0.04 : 0.04;
         programState->airBalloonRotation.z += programState->airBalloonRotation.z >= 0.f ? -0.001 : 0.001;
+
+        // drawing skybox
+        glDepthFunc(GL_LEQUAL);
+        skyboxShader.use();
+        view = glm::mat4(glm::mat3(programState->camera->GetViewMatrix()));
+        skyboxShader.setMat4("projection", projection);
+        skyboxShader.setMat4("view", view);
+        skyboxSModel.Draw(GL_TRIANGLES, true);
+        glDepthFunc(GL_LESS);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         glfwSwapBuffers(window);
@@ -266,6 +329,12 @@ int main() {
     // glfw: terminate, clearing all previously allocated GLFW resources.
     delete fps_camera;
     delete tpp_camera;
+    // if we put content of Destroy() method into ~SimpleModel destructor, glfwTerminate() causes SEGFAULT
+    // probably glfwTerminate() is freeing by itself those VAOs and VBOs
+    axisSModel.Destroy();
+    grassPlaneSModel.Destroy();
+    grassSModel.Destroy();
+    skyboxSModel.Destroy();
     glfwTerminate();
     return 0;
 }

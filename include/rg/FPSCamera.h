@@ -11,7 +11,6 @@ public:
     FPSCamera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH)
     : Camera(position, up, yaw, pitch)
     {
-        Distance = 35.f;
         glm::vec3 front;
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
@@ -24,7 +23,6 @@ public:
     FPSCamera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
     : Camera(posX, posY, posZ, upX, upY, upZ, yaw, pitch)
     {
-        Distance = 35.f;
         glm::vec3 front;
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
@@ -73,11 +71,11 @@ public:
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset)
     {
-        Distance -= (float)yoffset;
-        if (Distance < 1.0f)
-            Distance = 1.0f;
-        if (Distance > 45.0f)
-            Distance = 45.0f;
+        Zoom -= (float)yoffset;
+        if (Zoom < 1.0f)
+            Zoom = 1.0f;
+        if (Zoom > 45.0f)
+            Zoom = 45.0f;
     }
 
     glm::mat4 GetViewMatrix() override

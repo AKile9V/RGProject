@@ -9,6 +9,7 @@ class TPPCamera : public Camera
 {
 public:
     glm::vec3 Target;
+    float Distance = 5.f;
     // constructor with vectors
     TPPCamera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f),
               float yaw = YAW, float pitch = PITCH)
@@ -53,11 +54,11 @@ public:
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void ProcessMouseScroll(float yoffset)
     {
-        Distance -= (float)yoffset*0.5;
-        if (Distance < 10.0f)
-            Distance = 10.0f;
-        if (Distance > 14.0f)
-            Distance = 14.0f;
+        Zoom -= (float)yoffset;
+        if (Zoom < 25.0f)
+            Zoom = 25.0f;
+        if (Zoom > 45.0f)
+            Zoom = 45.0f;
 
         updateCameraVectors(Target);
     }
