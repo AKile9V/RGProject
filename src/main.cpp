@@ -19,6 +19,7 @@
 #include "rg/FPSCamera.h"
 
 #include <iostream>
+#include <random>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -106,6 +107,12 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
+    // Random number generator
+    std::default_random_engine dre;
+    double lowerBound = -45;
+    double upperBound = 45;
+    std::uniform_real_distribution<double> uniformDouble(lowerBound,upperBound);
+
     // configure global opengl state
     glEnable(GL_DEPTH_TEST);
     glCullFace(GL_FRONT);
@@ -142,18 +149,36 @@ int main() {
     // grass plane
     std::vector<float> grass_plane_vertices = {
             // positions            // normals         // texcoords
-            10.0f, 0.0f,  10.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
-            -10.0f, 0.0f,  10.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
-            -10.0f, 0.0f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+            50.0f, 0.0f,  50.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+            -50.0f, 0.0f,  50.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+            -50.0f, 0.0f, -50.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
 
-            10.0f, 0.0f,  10.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
-            -10.0f, 0.0f, -10.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
-            10.0f, 0.0f, -10.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
+            50.0f, 0.0f,  50.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+            -50.0f, 0.0f, -50.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+            50.0f, 0.0f, -50.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
     };
-    SimpleModel grassSModel(grass_plane_vertices, true, true);
-    grassSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
+    SimpleModel grassPlaneSModel(grass_plane_vertices, true, true);
+    grassPlaneSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
+    // grass
+    std::vector<float> grass_vertices = {
+            // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
+            0.0f,  1.f,  0.0f,  0.0f,  0.0f,
+            0.0f, -0.1f,  0.0f,  0.0f,  1.0f,
+            1.0f, -0.1f,  0.0f,  1.0f,  1.0f,
 
-    // projection (most of the time there's no need to change projection, no need to be in the render loop)
+            0.0f,  1.f,  0.0f,  0.0f,  0.0f,
+            1.0f, -0.1f,  0.0f,  1.0f,  1.0f,
+            1.0f,  1.f,  0.0f,  1.0f,  0.0f
+    };
+    SimpleModel grassSModel(grass_vertices, false, true);
+    grassSModel.AddTexture("resources/textures/grass.png", "texture1", 0, grassPlaneShader);
+    std::vector<glm::vec3> grass_translate;
+    for(int i=0; i<1000; i++)
+    {
+        grass_translate.emplace_back(uniformDouble(dre), 0.f, uniformDouble(dre));
+    }
+
+    // projection
     glm::mat4 projection = glm::perspective(glm::radians(programState->camera->Distance), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     axisShader.use();
     axisShader.setMat4("projection", projection);
@@ -175,13 +200,14 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         projection = glm::perspective(glm::radians(programState->camera->Distance), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
-        // drawing axis
+        // projection
         axisShader.use();
         axisShader.setMat4("projection", projection);
         airBalloonShader.use();
         airBalloonShader.setMat4("projection", projection);
         grassPlaneShader.use();
         grassPlaneShader.setMat4("projection", projection);
+        // view and model
         glm::mat4 view = programState->camera->GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
@@ -189,8 +215,20 @@ int main() {
         glEnable(GL_CULL_FACE);
         grassPlaneShader.use();
         grassPlaneShader.setMat4("view", view);
-        grassSModel.Draw(GL_TRIANGLES);
+        grassPlaneShader.setMat4("model", model);
+        grassPlaneSModel.Draw(GL_TRIANGLES);
         glDisable(GL_CULL_FACE);
+        for(int i=0; i<grass_translate.size(); ++i)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, grass_translate[i]);
+            if(i<grass_translate.size()/2)
+                model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+            grassPlaneShader.setMat4("model", model);
+            grassSModel.Draw(GL_TRIANGLES);
+
+        }
 
         // drawing axis
         model = glm::mat4(1.0f);
@@ -299,14 +337,14 @@ void processInput(GLFWwindow *window) {
     if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
     {
         programState->airBalloonUp += 0.01f;
-        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/3;
+        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/2.f;
         programState->camera->updateCameraVectors(programState->airBalloonPosition);
     }
 
     if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     {
         programState->airBalloonUp = programState->airBalloonUp>=0 ? programState->airBalloonUp-0.01f : 0.0f;
-        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/3.f;
+        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/2.f;
         programState->camera->updateCameraVectors(programState->airBalloonPosition);
     }
 //    if(glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)

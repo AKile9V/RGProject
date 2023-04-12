@@ -31,6 +31,7 @@ private:
 
     unsigned int loadTexture(char const * path)
     {
+        stbi_set_flip_vertically_on_load(false);
         unsigned int textureID;
         glGenTextures(1, &textureID);
 
@@ -56,6 +57,7 @@ private:
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             stbi_image_free(data);
+            std::cout << "Texture loaded successfully" << std::endl;
         }
         else
         {
@@ -83,6 +85,7 @@ public:
         {
             auto first = vertices.cbegin() + i;
             auto last = vertices.cbegin() + i + take + 1;
+            int ord = 3;
             std::vector<float> sliced(first, last);
             vector3.x = sliced[0];
             vector3.y = sliced[1];
@@ -91,16 +94,16 @@ public:
 
             if(normCol)
             {
-                vector3.x = sliced[3];
-                vector3.y = sliced[4];
-                vector3.z = sliced[5];
+                vector3.x = sliced[ord++];
+                vector3.y = sliced[ord++];
+                vector3.z = sliced[ord++];
                 temp.NormalOrColor = vector3;
             }
 
             if(texture)
             {
-                vector2.x = sliced[6];
-                vector2.y = sliced[7];
+                vector2.x = sliced[ord++];
+                vector2.y = sliced[ord++];
                 temp.TexCoords = vector2;
             }
             mVertices.push_back(temp);
