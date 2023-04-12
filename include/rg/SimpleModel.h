@@ -29,9 +29,8 @@ private:
     unsigned int VBO, VAO;
 //    unsigned int EBO;
 
-    unsigned int loadTexture(char const * path)
+    unsigned int loadTexture(const char *path)
     {
-        stbi_set_flip_vertically_on_load(false);
         unsigned int textureID;
         glGenTextures(1, &textureID);
 
@@ -66,8 +65,9 @@ private:
 
         return textureID;
     }
-    unsigned int loadCubemap(vector<std::string> faces)
+    unsigned int loadCubemap(const vector<std::string> &faces)
     {
+        stbi_set_flip_vertically_on_load(false);
         unsigned int textureID;
         glGenTextures(1, &textureID);
         glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
@@ -93,11 +93,12 @@ private:
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
+        stbi_set_flip_vertically_on_load(true);
         return textureID;
     }
 
 public:
-    SimpleModel(std::vector<float> vertices, bool normCol=false, bool texture=false /*,bool att3=false, bool att4= false*/)
+    SimpleModel(const std::vector<float> &vertices, bool normCol=false, bool texture=false /*,bool att3=false, bool att4= false*/)
     : hasNormCol(normCol), hasTexture(texture)
     {
         int take = 3;
@@ -190,7 +191,7 @@ public:
         glDeleteBuffers(1, &VBO);
     }
 
-    void AddTexture(std::string path, std::string name, int value, Shader &shader)
+    void AddTexture(const std::string &path, const std::string &name, int value, Shader &shader)
     {
         unsigned int textureID = loadTexture(FileSystem::getPath(path).c_str());
         texIDs.push_back(textureID);
@@ -198,7 +199,7 @@ public:
         shader.setInt(name, value);
     }
 
-    void AddCubemaps(vector<std::string> faces, std::string name, int value, Shader &shader)
+    void AddCubemaps(const vector<std::string> &faces, const std::string &name, int value, Shader &shader)
     {
         unsigned int skyboxID = loadCubemap(faces);
         texIDs.push_back(skyboxID);

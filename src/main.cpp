@@ -35,25 +35,29 @@ const unsigned int SCR_HEIGHT = 600;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+struct MainModelState {
+    glm::vec3 mmPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 mmRotation = glm::vec3(1.0f, .0f, .0f);
+    float mmSpeed = 0.01f;
+    float mmUp = 0.0f;
+    float mmUpSens = 2.f;
+    float mmAngle = -90.f;
+    float mmTurnAngle = 0.f;
+
+    MainModelState() = default;
+};
+
 struct ProgramState {
     // camera options
-    Camera *camera;
+    Camera *camera = nullptr;
     bool firstMouse = true;
     float lastX = SCR_WIDTH / 2.0f;
     float lastY = SCR_HEIGHT / 2.0f;
 
-    // air_balloon
-    glm::vec3 airBalloonPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-    float airBalloonUp = 0.0f;
-    float airBalloonAngle = -90.f;
-    float TurnAngle = 0.f;
-    glm::vec3 airBalloonRotation = glm::vec3(1.0f, .0f, .0f);
-
     ProgramState() = default;
-    ~ProgramState() { delete camera; }
-
 };
 ProgramState *programState;
+MainModelState *mainModelState;
 FPSCamera *fps_camera;
 TPPCamera *tpp_camera;
 
@@ -93,8 +97,9 @@ int main() {
 
     // default ProgramState setup
     programState = new ProgramState;
+    mainModelState = new MainModelState;
     fps_camera = new FPSCamera(glm::vec3(.5f, .8f, -3.0f), glm::vec3(0.0f, 1.0f, 0.0f), 90.f);
-    tpp_camera = new TPPCamera(glm::vec3(.5f, .8f, 3.0f), programState->airBalloonPosition,
+    tpp_camera = new TPPCamera(glm::vec3(.5f, .8f, 3.0f), mainModelState->mmPosition,
                                glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
     programState->camera = tpp_camera;
 
@@ -139,7 +144,6 @@ int main() {
             4.0, 0.0f, 0.0f,
             3.6, -.2f, 0.0f,
     };
-
     std::vector<glm::vec3> axisColor = {
             glm::vec3(1.f, 0.f, 0.f),
             glm::vec3(0.f, 1.f, 0.f),
@@ -162,14 +166,13 @@ int main() {
     grassPlaneSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
     // grass
     std::vector<float> grass_vertices = {
-            // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
-            0.0f,  1.f,  0.0f,  0.0f,  0.0f,
-            0.0f, -0.1f,  0.0f,  0.0f,  1.0f,
-            1.0f, -0.1f,  0.0f,  1.0f,  1.0f,
+            1.f, 1.f, 0.0f, 1.0f, 1.0f,
+            1.f, 0.f, 0.0f, 1.0f, 0.0f,
+            0.f, 1.f, 0.0f, 0.0f, 1.0f,
 
-            0.0f,  1.f,  0.0f,  0.0f,  0.0f,
-            1.0f, -0.1f,  0.0f,  1.0f,  1.0f,
-            1.0f,  1.f,  0.0f,  1.0f,  0.0f
+            1.f, 0.f, 0.0f, 1.0f, 0.0f,
+            0.f, 0.f, 0.0f, 0.0f, 0.0f,
+            0.f, 1.f, 0.0f, 0.0f, 1.0f
     };
     SimpleModel grassSModel(grass_vertices, false, true);
     grassSModel.AddTexture("resources/textures/grass.png", "texture1", 0, grassPlaneShader);
@@ -235,17 +238,6 @@ int main() {
     SimpleModel skyboxSModel(skybox_vertices);
     skyboxSModel.AddCubemaps(faces, "skybox", 0, skyboxShader);
 
-    // projection
-    glm::mat4 projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-    axisShader.use();
-    axisShader.setMat4("projection", projection);
-    airBalloonShader.use();
-    airBalloonShader.setMat4("projection", projection);
-    grassPlaneShader.use();
-    grassPlaneShader.setMat4("projection", projection);
-    skyboxShader.use();
-    skyboxShader.setMat4("projection", projection);
-
     // render loop
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
@@ -257,9 +249,9 @@ int main() {
         // render
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
         // view and model
+        glm::mat4 projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera->GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
@@ -300,14 +292,14 @@ int main() {
         airBalloonShader.use();
         airBalloonShader.setMat4("projection", projection);
         airBalloonShader.setMat4("view", view);
-        model = glm::translate(model, programState->airBalloonPosition);
-        model = glm::rotate(model, glm::radians(programState->airBalloonAngle), programState->airBalloonRotation);
-        model = glm::rotate(model, glm::radians(programState->TurnAngle), glm::vec3(0.f, 0.f, 1.f));
+        model = glm::translate(model, mainModelState->mmPosition);
+        model = glm::rotate(model, glm::radians(mainModelState->mmAngle), mainModelState->mmRotation);
+        model = glm::rotate(model, glm::radians(mainModelState->mmTurnAngle), glm::vec3(0.f, 0.f, 1.f));
         model = glm::scale(model, glm::vec3(.0009f, .0009f, 0.0007f));
         airBalloonShader.setMat4("model", model);
         hot_air_balloon.Draw(airBalloonShader);
-        programState->airBalloonAngle += programState->airBalloonAngle >=-90.f ? -0.04 : 0.04;
-        programState->airBalloonRotation.z += programState->airBalloonRotation.z >= 0.f ? -0.001 : 0.001;
+        mainModelState->mmAngle += mainModelState->mmAngle >=-90.f ? -0.04 : 0.04;
+        mainModelState->mmRotation.z += mainModelState->mmRotation.z >= 0.f ? -0.001 : 0.001;
 
         // drawing skybox
         glDepthFunc(GL_LEQUAL);
@@ -329,6 +321,8 @@ int main() {
     // glfw: terminate, clearing all previously allocated GLFW resources.
     delete fps_camera;
     delete tpp_camera;
+    delete programState;
+    delete mainModelState;
     // if we put content of Destroy() method into ~SimpleModel destructor, glfwTerminate() causes SEGFAULT
     // probably glfwTerminate() is freeing by itself those VAOs and VBOs
     axisSModel.Destroy();
@@ -345,86 +339,88 @@ void processInput(GLFWwindow *window) {
         glfwSetWindowShouldClose(window, true);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        if(programState->airBalloonAngle > -100.f)
+        if(mainModelState->mmAngle > -100.f)
         {
-            programState->airBalloonAngle -= 0.1f;
+            mainModelState->mmAngle -= 0.1f;
         }
-        if(programState->TurnAngle > 0.f)
+        if(mainModelState->mmTurnAngle > 0.f)
         {
-            programState->TurnAngle -= .5f;
+            mainModelState->mmTurnAngle -= .5f;
         }
-        if(programState->TurnAngle < 0.f)
+        if(mainModelState->mmTurnAngle < 0.f)
         {
-            programState->TurnAngle += .5f;
+            mainModelState->mmTurnAngle += .5f;
         }
-        programState->airBalloonPosition.z += 0.003f;
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        mainModelState->mmPosition.z += mainModelState->mmSpeed;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
         programState->camera->ProcessKeyboard(FORWARD, deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        if(programState->airBalloonAngle < -75.f)
+        if(mainModelState->mmAngle < -75.f)
         {
-            programState->airBalloonAngle += 0.1f;
+            mainModelState->mmAngle += 0.1f;
         }
-        programState->airBalloonPosition.z -= 0.003f;
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        mainModelState->mmPosition.z -= mainModelState->mmSpeed;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
 
         programState->camera->ProcessKeyboard(BACKWARD, deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        if(programState->airBalloonRotation.z > -0.3f)
+        if(mainModelState->mmRotation.z > -0.3f)
         {
-            programState->airBalloonRotation.z -= 0.002f;
-            if(programState->TurnAngle < 90.f)
+            mainModelState->mmRotation.z -= 0.002f;
+            if(mainModelState->mmTurnAngle < 90.f)
             {
-                programState->TurnAngle += .5f;
+                mainModelState->mmTurnAngle += .5f;
             }
         }
-        programState->airBalloonPosition.x += 0.003f;
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        mainModelState->mmPosition.x += mainModelState->mmSpeed;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
 
         programState->camera->ProcessKeyboard(LEFT, deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        if(programState->airBalloonRotation.z < 0.3f)
+        if(mainModelState->mmRotation.z < 0.3f)
         {
-            programState->airBalloonRotation.z += 0.002f;
-            if(programState->TurnAngle > -90.f)
+            mainModelState->mmRotation.z += 0.002f;
+            if(mainModelState->mmTurnAngle > -90.f)
             {
-                programState->TurnAngle -= .5f;
+                mainModelState->mmTurnAngle -= .5f;
             }
         }
-        programState->airBalloonPosition.x -= 0.003f;
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        mainModelState->mmPosition.x -= mainModelState->mmSpeed;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
 
-        programState->camera->ProcessKeyboard(RIGHT, deltaTime);
+        if(programState->camera == fps_camera)
+            programState->camera->ProcessKeyboard(RIGHT, deltaTime);
     }
 
     if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
     {
-        programState->airBalloonUp += 0.01f;
-        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/2.f;
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        mainModelState->mmUp += 0.01f;
+        mainModelState->mmPosition.y = glm::log(mainModelState->mmUp+1.0f) * mainModelState->mmUpSens;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
     }
 
     if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     {
-        programState->airBalloonUp = programState->airBalloonUp>=0 ? programState->airBalloonUp-0.01f : 0.0f;
-        programState->airBalloonPosition.y = glm::log(programState->airBalloonUp+1.0f)/2.f;
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        mainModelState->mmUp = mainModelState->mmUp>=0 ? mainModelState->mmUp-0.01f : 0.0f;
+        if(mainModelState->mmUp >= 0.f)
+            mainModelState->mmPosition.y = glm::log(mainModelState->mmUp+1.0f) * mainModelState->mmUpSens;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
     }
 //    if(glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
 //    {
 //        programState->camera = fps_camera;
-//        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+//        programState->camera->updateCameraVectors(mainModelState->mmPosition);
 //    }
 //    if(glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS)
 //    {
 //        programState->camera = tpp_camera;
-//        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+//        programState->camera->updateCameraVectors(mainModelState->mmPosition);
 //    }
 }
 
@@ -451,7 +447,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 //    if (leftClick == GLFW_PRESS)
 //    {
         programState->camera->ProcessMouseMovement(xoffset, yoffset);
-        programState->camera->updateCameraVectors(programState->airBalloonPosition);
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
 //    }
 }
 
