@@ -27,6 +27,8 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
+void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader);
+
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -40,7 +42,7 @@ struct MainModelState {
     glm::vec3 mmRotation = glm::vec3(1.0f, .0f, .0f);
     float mmSpeed = 0.01f;
     float mmUp = 0.0f;
-    float mmUpSens = 2.f;
+    float mmUpSens = 3.5f;
     float mmAngle = -90.f;
     float mmTurnAngle = 0.f;
 
@@ -92,9 +94,6 @@ int main() {
         return -1;
     }
 
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    stbi_set_flip_vertically_on_load(true);
-
     // default ProgramState setup
     programState = new ProgramState;
     mainModelState = new MainModelState;
@@ -114,8 +113,8 @@ int main() {
 
     // Random number generator
     std::default_random_engine dre;
-    double lowerBound = -45;
-    double upperBound = 45;
+    double lowerBound = -25;
+    double upperBound = 25;
     std::uniform_real_distribution<double> uniformDouble(lowerBound,upperBound);
 
     // configure global opengl state
@@ -129,8 +128,21 @@ int main() {
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
 
     // models:
-    // hot air balloon
+    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model)
+    stbi_set_flip_vertically_on_load(false);
+    // stationery models
+    Model tree_house("resources/objects/tree_house/10783_TreeHouse_v7_LOD3.obj");
+    Model pisa_tower("resources/objects/pisa_tower/10076_pisa_tower_v1_max2009_it0.obj");
+    Model big_ben("resources/objects/big_ben/10059_big_ben_v2_max2011_it1.obj");
+    Model christ_redeemer("resources/objects/christ_redeemer/12331_Christ_Rio_V1_L1.obj");
+    stbi_set_flip_vertically_on_load(true);
+    Model liberty_statue("resources/objects/liberty_statue/LibertStatue.obj");
+    // main model
     Model hot_air_balloon("resources/objects/hot_air_balloon/11809_Hot_air_balloon_l2.obj");
+
+    std::vector<Model> stationery_models = {
+            tree_house, pisa_tower, big_ben, christ_redeemer, liberty_statue
+    };
 
     // simple models:
     // axis
@@ -154,13 +166,13 @@ int main() {
     // grass plane
     std::vector<float> grass_plane_vertices = {
             // positions            // normals         // texcoords
-            50.0f, 0.0f,  50.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
-            -50.0f, 0.0f,  50.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
-            -50.0f, 0.0f, -50.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+            30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+            -30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+            -30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
 
-            50.0f, 0.0f,  50.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
-            -50.0f, 0.0f, -50.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
-            50.0f, 0.0f, -50.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
+            30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+            -30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+            30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
     };
     SimpleModel grassPlaneSModel(grass_plane_vertices, true, true);
     grassPlaneSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
@@ -300,6 +312,8 @@ int main() {
         hot_air_balloon.Draw(airBalloonShader);
         mainModelState->mmAngle += mainModelState->mmAngle >=-90.f ? -0.04 : 0.04;
         mainModelState->mmRotation.z += mainModelState->mmRotation.z >= 0.f ? -0.001 : 0.001;
+        //  drawing other static models
+        DrawAllStationeryModels(stationery_models, airBalloonShader);
 
         // drawing skybox
         glDepthFunc(GL_LEQUAL);
@@ -394,8 +408,7 @@ void processInput(GLFWwindow *window) {
         mainModelState->mmPosition.x -= mainModelState->mmSpeed;
         programState->camera->updateCameraVectors(mainModelState->mmPosition);
 
-        if(programState->camera == fps_camera)
-            programState->camera->ProcessKeyboard(RIGHT, deltaTime);
+        programState->camera->ProcessKeyboard(RIGHT, deltaTime);
     }
 
     if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
@@ -459,3 +472,43 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
 }
 
+void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader)
+{
+    // 0:tree_house, 1:pisa_tower, 2:big_ben, 3:christ_redeemer, 4:liberty_statue
+    glm::mat4 model = glm::mat4(1.0f);
+    // tree_house
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-2.f, 0.f, 3.f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.0f, .0f, .0f));
+    model = glm::scale(model, glm::vec3(.015f, .015f, 0.015f));
+    shader.setMat4("model", model);
+    statModels[0].Draw(shader);
+    // pisa_tower
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(15.f, 0.f, 10.f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.0f, .0f, .0f));
+    model = glm::scale(model, glm::vec3(.0015f, .0015f, 0.0015f));
+    shader.setMat4("model", model);
+    statModels[1].Draw(shader);
+    // big_ben
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-20.f, 0.f, -5.f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.0f, .0f, .0f));
+    model = glm::scale(model, glm::vec3(.0025f, .0025f, 0.0025f));
+    shader.setMat4("model", model);
+    statModels[2].Draw(shader);
+    // christ_redeemer
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.f, 0.f, 15.f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.0f, .0f, .0f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(.0f, 0.f, 1.0f));
+    model = glm::scale(model, glm::vec3(.001f, .001f, 0.001f));
+    shader.setMat4("model", model);
+    statModels[3].Draw(shader);
+    // liberty_statue
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(5.f, 0.f, -15.f));
+    model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    shader.setMat4("model", model);
+    statModels[4].Draw(shader);
+}
