@@ -137,11 +137,12 @@ int main() {
     Model christ_redeemer("resources/objects/christ_redeemer/12331_Christ_Rio_V1_L1.obj");
     stbi_set_flip_vertically_on_load(true);
     Model liberty_statue("resources/objects/liberty_statue/LibertStatue.obj");
+    Model tree("resources/objects/tree/Tree.obj");
     // main model
     Model hot_air_balloon("resources/objects/hot_air_balloon/11809_Hot_air_balloon_l2.obj");
 
     std::vector<Model> stationery_models = {
-            tree_house, pisa_tower, big_ben, christ_redeemer, liberty_statue
+            tree_house, pisa_tower, big_ben, christ_redeemer, liberty_statue, tree
     };
 
     // simple models:
@@ -368,6 +369,7 @@ void processInput(GLFWwindow *window) {
         mainModelState->mmPosition.z += mainModelState->mmSpeed;
         programState->camera->updateCameraVectors(mainModelState->mmPosition);
         programState->camera->ProcessKeyboard(FORWARD, deltaTime);
+        std::cout << "x " << mainModelState->mmPosition.x << "y " << mainModelState->mmPosition.y << "z " << mainModelState->mmPosition.z << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
@@ -511,4 +513,10 @@ void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader)
     model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
     shader.setMat4("model", model);
     statModels[4].Draw(shader);
+    // tree
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-1.5f, 0.f, 4.f));
+    model = glm::scale(model, glm::vec3(0.9f, 0.9f, 0.9f));
+    shader.setMat4("model", model);
+    statModels[5].Draw(shader);
 }
