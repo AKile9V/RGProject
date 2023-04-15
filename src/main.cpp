@@ -28,6 +28,9 @@ void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
 void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader);
+void DrawAxis(Shader &shader, SimpleModel &axisSModel, glm::mat4 projection);
+void DrawImGuiInfoWindows();
+void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -55,6 +58,8 @@ struct ProgramState {
     bool firstMouse = true;
     float lastX = SCR_WIDTH / 2.0f;
     float lastY = SCR_HEIGHT / 2.0f;
+
+    bool isCVars = false;
 
     ProgramState() = default;
 };
@@ -98,7 +103,7 @@ int main() {
     programState = new ProgramState;
     mainModelState = new MainModelState;
     fps_camera = new FPSCamera(glm::vec3(.5f, .8f, -3.0f), glm::vec3(0.0f, 1.0f, 0.0f), 90.f);
-    tpp_camera = new TPPCamera(glm::vec3(.5f, .8f, 3.0f), mainModelState->mmPosition,
+    tpp_camera = new TPPCamera(glm::vec3(.0f, .0f, 0.f), mainModelState->mmPosition,
                                glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
     programState->camera = tpp_camera;
 
@@ -106,8 +111,8 @@ int main() {
     // Init Imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    (void) io;
+    ImGuiIO &io = ImGui::GetIO(); (void) io;
+    ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
@@ -251,22 +256,33 @@ int main() {
     SimpleModel skyboxSModel(skybox_vertices);
     skyboxSModel.AddCubemaps(faces, "skybox", 0, skyboxShader);
 
+    // declare before loop
+    glm::mat4 projection;
+    glm::mat4 view;
+    glm::mat4 model;
+
     // render loop
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        // ImGui frame init
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
         // input
         processInput(window);
         // render
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // view and model
-        glm::mat4 projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = programState->camera->GetViewMatrix();
-        glm::mat4 model = glm::mat4(1.0f);
+        // projection, view, model
+        projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = programState->camera->GetViewMatrix();
+        model = glm::mat4(1.0f);
 
         // drawing grass plane model
         glEnable(GL_CULL_FACE);
@@ -285,19 +301,6 @@ int main() {
             model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
             grassPlaneShader.setMat4("model", model);
             grassSModel.Draw(GL_TRIANGLES);
-        }
-
-        // drawing axis
-        model = glm::mat4(1.0f);
-        axisShader.use();
-        axisShader.setMat4("projection", projection);
-        axisShader.setMat4("view", view);
-        for(int i=0; i<3; ++i)
-        {
-            model = glm::rotate(model, glm::radians(90.f), axisColor[i]);
-            axisShader.setMat4("model", model);
-            axisShader.setVec3("LineColor", axisColor[i]);
-            axisSModel.Draw(GL_LINES);
         }
 
         // drawing balloon model
@@ -325,6 +328,13 @@ int main() {
         skyboxSModel.Draw(GL_TRIANGLES, true);
         glDepthFunc(GL_LESS);
 
+        DrawImGuiInfoWindows();
+        DrawCVarAndAxis(window, axisShader, axisSModel, axisColor, projection);
+
+        // ImGui render
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -333,7 +343,6 @@ int main() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    // glfw: terminate, clearing all previously allocated GLFW resources.
     delete fps_camera;
     delete tpp_camera;
     delete programState;
@@ -344,6 +353,7 @@ int main() {
     grassPlaneSModel.Destroy();
     grassSModel.Destroy();
     skyboxSModel.Destroy();
+    // glfw: terminate, clearing all previously allocated GLFW resources.
     glfwTerminate();
     return 0;
 }
@@ -369,7 +379,6 @@ void processInput(GLFWwindow *window) {
         mainModelState->mmPosition.z += mainModelState->mmSpeed;
         programState->camera->updateCameraVectors(mainModelState->mmPosition);
         programState->camera->ProcessKeyboard(FORWARD, deltaTime);
-        std::cout << "x " << mainModelState->mmPosition.x << "y " << mainModelState->mmPosition.y << "z " << mainModelState->mmPosition.z << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
@@ -453,7 +462,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
         programState->lastY = ypos;
         programState->firstMouse = false;
     }
-
     float xoffset = xpos - programState->lastX;
     float yoffset = programState->lastY - ypos; // reversed since y-coordinates go from bottom to top
     programState->lastX = xpos;
@@ -471,7 +479,11 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     programState->camera->ProcessMouseScroll(yoffset);
 }
 
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_GRAVE_ACCENT && action == GLFW_PRESS) {
+        programState->isCVars = !programState->isCVars;
+    }
 }
 
 void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader)
@@ -519,4 +531,113 @@ void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader)
     model = glm::scale(model, glm::vec3(0.9f, 0.9f, 0.9f));
     shader.setMat4("model", model);
     statModels[5].Draw(shader);
+}
+
+void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, const glm::mat4 projection)
+{
+    // drawing axis
+    glm::mat4 model = glm::mat4(1.0f);
+    shader.use();
+    shader.setMat4("projection", projection);
+    shader.setMat4("view", programState->camera->GetViewMatrix());
+    for(int i=0; i<3; ++i)
+    {
+        model = glm::rotate(model, glm::radians(90.f), axisColor[i]);
+        shader.setMat4("model", model);
+        shader.setVec3("LineColor", axisColor[i]);
+        axisSModel.Draw(GL_LINES);
+    }
+}
+
+void DrawImGuiInfoWindows()
+{
+    // tree house
+    if(mainModelState->mmPosition.x<=0.0 && mainModelState->mmPosition.x>=-4.0
+       && mainModelState->mmPosition.z>=0.0 && mainModelState->mmPosition.z<=4.0)
+    {
+        ImGui::Begin("Welcome Home!");
+        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::Text("Hello traveler!\nUse your W-A-S-D keys to move around the map.\n"
+                    "You can go up and down with your SPACE and SHIFT keys.\n"
+                    "Also, you can rotate your camera around the air balloon using your mouse, for better views!\n"
+                    "Try to get closer to the structures around the area to find out more about them!\n");
+        ImGui::End();
+    }
+//        model = glm::translate(model, glm::vec3(0.f, 0.f, 15.f));
+    else if(mainModelState->mmPosition.x<=4.0 && mainModelState->mmPosition.x>=-4.0
+            && mainModelState->mmPosition.z>=11.0 && mainModelState->mmPosition.z<=19.0)
+    {
+        ImGui::Begin("Christ the Redeemer");
+        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::Text("This is statue of Jesus Christ located in Rio de Janeiro, Brazil.\n"
+                    "The statue is 30 meters high!\n"
+                    "The original design of the Christ the Redeemer statue was different to what we see today.\n"
+                    "It was intended for Christ to be holding a globe in one hand and a cross in the other,\nrather"
+                    " than two open arms.");
+        ImGui::End();
+    }
+//        model = glm::translate(model, glm::vec3(15.f, 0.f, 10.f));
+    else if(mainModelState->mmPosition.x<=19.0 && mainModelState->mmPosition.x>=11.0
+            && mainModelState->mmPosition.z>=6.0 && mainModelState->mmPosition.z<=14.0)
+    {
+        ImGui::Begin("Leaning Tower of Pisa");
+        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::Text("The Tower of Pisa is freestanding bell tower of Pisa Cathedral located in Pisa, Italy.\n"
+                    "The tower is 55m high!\n"
+                    "The leaning of the tower is due to both a wrong assumption and poor engineering, but still, it\n"
+                    "is a miracle of physics, because there is no good reason why the tower lasted for 800 years!");
+        ImGui::End();
+    }
+
+//        model = glm::translate(model, glm::vec3(-20.f, 0.f, -5.f));
+    else if(mainModelState->mmPosition.x<=-16.0 && mainModelState->mmPosition.x>=-24.0
+            && mainModelState->mmPosition.z>=-9.0 && mainModelState->mmPosition.z<=-1.0)
+    {
+        ImGui::Begin("Big Ben");
+        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::Text("Big Ben is the nickname for the Great Bell of the Elizabeth Tower located in London, England.\n"
+                    "The tower itself is 96m high!\n"
+                    "The name Big Ben does not refer to the clock or the tower, but to the bell inside the tower!\n"
+                    "Despite that, Big Ben became the nickname for the whole clock-tower.");
+        ImGui::End();
+    }
+//        model = glm::translate(model, glm::vec3(5.f, 0.f, -15.f));
+    else if(mainModelState->mmPosition.x<=9.0 && mainModelState->mmPosition.x>=1.0
+            && mainModelState->mmPosition.z>=-19.0 && mainModelState->mmPosition.z<=-11.0)
+    {
+        ImGui::Begin("Statue of Liberty");
+        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::Text("The Statue of Liberty is a colossal copper statue, a gift from the people of France located\n"
+                    "in New York City, USA\n"
+                    "The statue is 93m high!\n"
+                    "It was originally intended for Egypt and it would have called Egypt Carrying the Light to Asia,\n"
+                    "but the project was rejected due to its cost and the idea was recycled to be The Statue of Liberty.");
+        ImGui::End();
+    }
+}
+
+void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection)
+{
+    if(programState->isCVars)
+    {
+        DrawAxis(shader, axisSModel, axisColor, projection);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+        ImGui::Begin("CVARS");
+        ImGui::SetWindowSize(ImVec2(450.f, 110.f));
+        if(ImGui::RadioButton("TPP Camera", programState->camera == tpp_camera))
+        {
+            programState->camera = tpp_camera;
+        }
+        else if(ImGui::RadioButton("FPS Camera", programState->camera == fps_camera))
+        {
+            programState->camera = fps_camera;
+        }
+        ImGui::DragFloat("Air Balloon speed", &mainModelState->mmSpeed, 0.001f, 0.01f, 0.09f);
+        ImGui::End();
+    }
+    else
+    {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
 }

@@ -15,12 +15,31 @@ public:
               float yaw = YAW, float pitch = PITCH)
     : Camera(position, up, yaw, pitch), Target(target)
     {
+        // calculate the new Front vector
+        glm::vec3 pos;
+        pos.x = Distance * cos(glm::radians(Yaw)) * cos(glm::radians(Pitch)) + Target.x;
+        pos.z = Distance * sin(glm::radians(Yaw)) * cos(glm::radians(Pitch)) + Target.z;
+        pos.y = sin(glm::radians(Pitch)) + Target.y;
+        Position = pos;
+        Front = Target - Position;
+        // also re-calculate the Right and Up vector
+        Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        Up    = glm::normalize(glm::cross(Right, Front));
     }
     // constructor with scalar values
     TPPCamera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
     : Camera(posX, posY, posZ, upX, upY, upZ, yaw, pitch)
     {
-
+        // calculate the new Front vector
+        glm::vec3 pos;
+        pos.x = Distance * cos(glm::radians(Yaw)) * cos(glm::radians(Pitch)) + Target.x;
+        pos.z = Distance * sin(glm::radians(Yaw)) * cos(glm::radians(Pitch)) + Target.z;
+        pos.y = sin(glm::radians(Pitch)) + Target.y;
+        Position = pos;
+        Front = Target - Position;
+        // also re-calculate the Right and Up vector
+        Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        Up    = glm::normalize(glm::cross(Right, Front));
     }
 
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
