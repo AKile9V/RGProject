@@ -29,7 +29,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projection);
 void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos, glm::mat4 projection);
-void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader);
+void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader, glm::mat4 projection);
 void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
 void SetDirectionalLightParameters(Shader &shader);
 void DrawImGuiInfoWindows();
@@ -307,7 +307,7 @@ int main() {
 
         SetDirectionalLightParameters(modelShader);
         // drawing other static models
-        DrawAllStationeryModels(stationery_models, modelShader);
+        DrawAllStationeryModels(stationery_models, modelShader, projection);
         // drawing balloon model
         DrawAirBalloon(modelShader, hot_air_balloon, projection);
         AirBalloonIdleEvent(window);
@@ -569,10 +569,14 @@ void AirBalloonIdleEvent(GLFWwindow *window)
     }
 }
 
-void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader)
+void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader, glm::mat4 projection)
 {
     // 0:tree_house, 1:pisa_tower, 2:big_ben, 3:christ_redeemer, 4:liberty_statue
+    shader.use();
     glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = programState->camera->GetViewMatrix();
+    shader.setMat4("projection", projection);
+    shader.setMat4("view", view);
     // tree_house
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-2.f, 0.f, 3.f));
