@@ -5,6 +5,7 @@
 
 project_base
 program_state.txt
+imgui.ini
 
 ### bin ###
 bin/
