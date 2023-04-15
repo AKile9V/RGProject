@@ -27,8 +27,10 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
+void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projection);
+void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos, glm::mat4 projection);
 void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader);
-void DrawAxis(Shader &shader, SimpleModel &axisSModel, glm::mat4 projection);
+void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
 void DrawImGuiInfoWindows();
 void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
 
@@ -43,9 +45,9 @@ float lastFrame = 0.0f;
 struct MainModelState {
     glm::vec3 mmPosition = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 mmRotation = glm::vec3(1.0f, .0f, .0f);
-    float mmSpeed = 0.01f;
+    float mmSpeed = 0.5f;
     float mmUp = 0.0f;
-    float mmUpSens = 3.5f;
+    float mmUpSens = 4.5f;
     float mmAngle = -90.f;
     float mmTurnAngle = 0.f;
 
@@ -146,13 +148,15 @@ int main() {
     // main model
     Model hot_air_balloon("resources/objects/hot_air_balloon/11809_Hot_air_balloon_l2.obj");
 
-    std::vector<Model> stationery_models = {
+    std::vector<Model> stationery_models
+    {
             tree_house, pisa_tower, big_ben, christ_redeemer, liberty_statue, tree
     };
 
     // simple models:
     // axis
-    std::vector<float> axisVertices = {
+    std::vector<float> axisVertices
+    {
             // line
             -4.f, 0.f, 0.f,
             4.f, 0.f, 0.f,
@@ -162,7 +166,8 @@ int main() {
             4.0, 0.0f, 0.0f,
             3.6, -.2f, 0.0f,
     };
-    std::vector<glm::vec3> axisColor = {
+    std::vector<glm::vec3> axisColor
+    {
             glm::vec3(1.f, 0.f, 0.f),
             glm::vec3(0.f, 1.f, 0.f),
             glm::vec3(0.f, 0.f, 1.f)
@@ -170,27 +175,29 @@ int main() {
     SimpleModel axisSModel(axisVertices);
 
     // grass plane
-    std::vector<float> grass_plane_vertices = {
-            // positions            // normals         // texcoords
-            30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
-            -30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
-            -30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+    std::vector<float> grass_plane_vertices
+    {
+        // positions          // normals         // texcoords
+        30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+        -30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+        -30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
 
-            30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
-            -30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
-            30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
+        30.0f, 0.0f,  30.0f,  0.0f, 1.0f, 0.0f,  20.0f,  0.0f,
+        -30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,   0.0f, 20.0f,
+        30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
     };
     SimpleModel grassPlaneSModel(grass_plane_vertices, true, true);
     grassPlaneSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
     // grass
-    std::vector<float> grass_vertices = {
-            1.f, 1.f, 0.0f, 1.0f, 1.0f,
-            1.f, 0.f, 0.0f, 1.0f, 0.0f,
-            0.f, 1.f, 0.0f, 0.0f, 1.0f,
+    std::vector<float> grass_vertices
+    {
+        1.f, 1.f, 0.0f, 1.0f, 1.0f,
+        1.f, 0.f, 0.0f, 1.0f, 0.0f,
+        0.f, 1.f, 0.0f, 0.0f, 1.0f,
 
-            1.f, 0.f, 0.0f, 1.0f, 0.0f,
-            0.f, 0.f, 0.0f, 0.0f, 0.0f,
-            0.f, 1.f, 0.0f, 0.0f, 1.0f
+        1.f, 0.f, 0.0f, 1.0f, 0.0f,
+        0.f, 0.f, 0.0f, 0.0f, 0.0f,
+        0.f, 1.f, 0.0f, 0.0f, 1.0f
     };
     SimpleModel grassSModel(grass_vertices, false, true);
     grassSModel.AddTexture("resources/textures/grass.png", "texture1", 0, grassPlaneShader);
@@ -201,57 +208,58 @@ int main() {
     }
 
     // skybox
-    std::vector<float> skybox_vertices = {
-            // positions
-            -1.0f,  1.0f, -1.0f,
-            -1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
+    std::vector<float> skybox_vertices
+    {
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
 
-            -1.0f, -1.0f,  1.0f,
-            -1.0f, -1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f,  1.0f,
-            -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
 
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
 
-            -1.0f, -1.0f,  1.0f,
-            -1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f, -1.0f,  1.0f,
-            -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
 
-            -1.0f,  1.0f, -1.0f,
-            1.0f,  1.0f, -1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            -1.0f,  1.0f,  1.0f,
-            -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
 
-            -1.0f, -1.0f, -1.0f,
-            -1.0f, -1.0f,  1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            -1.0f, -1.0f,  1.0f,
-            1.0f, -1.0f,  1.0f
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f
     };
-    vector<std::string> faces{
-                    FileSystem::getPath("resources/textures/skybox/right.jpg"),
-                    FileSystem::getPath("resources/textures/skybox/left.jpg"),
-                    FileSystem::getPath("resources/textures/skybox/top.jpg"),
-                    FileSystem::getPath("resources/textures/skybox/bottom.jpg"),
-                    FileSystem::getPath("resources/textures/skybox/front.jpg"),
-                    FileSystem::getPath("resources/textures/skybox/back.jpg")
+    vector<std::string> faces
+    {
+        FileSystem::getPath("resources/textures/skybox/right.jpg"),
+        FileSystem::getPath("resources/textures/skybox/left.jpg"),
+        FileSystem::getPath("resources/textures/skybox/top.jpg"),
+        FileSystem::getPath("resources/textures/skybox/bottom.jpg"),
+        FileSystem::getPath("resources/textures/skybox/front.jpg"),
+        FileSystem::getPath("resources/textures/skybox/back.jpg")
     };
     SimpleModel skyboxSModel(skybox_vertices);
     skyboxSModel.AddCubemaps(faces, "skybox", 0, skyboxShader);
@@ -259,7 +267,7 @@ int main() {
     // declare before loop
     glm::mat4 projection;
     glm::mat4 view;
-    glm::mat4 model;
+    glm::mat4 model = glm::mat4(1.0f);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -279,29 +287,13 @@ int main() {
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // projection, view, model
-        projection = glm::perspective(glm::radians(programState->camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        // projection, view
+        projection = glm::perspective(glm::radians(programState->camera->Zoom),
+                                      (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         view = programState->camera->GetViewMatrix();
-        model = glm::mat4(1.0f);
 
         // drawing grass plane model
-        glEnable(GL_CULL_FACE);
-        grassPlaneShader.use();
-        grassPlaneShader.setMat4("projection", projection);
-        grassPlaneShader.setMat4("view", view);
-        grassPlaneShader.setMat4("model", model);
-        grassPlaneSModel.Draw(GL_TRIANGLES);
-        glDisable(GL_CULL_FACE);
-        for(int i=0; i<grass_translate.size(); ++i)
-        {
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, grass_translate[i]);
-            if(i<grass_translate.size()/2)
-                model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 1.0f, 0.0f));
-            model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-            grassPlaneShader.setMat4("model", model);
-            grassSModel.Draw(GL_TRIANGLES);
-        }
+        DrawGrassGround(grassPlaneShader, grassPlaneSModel, grassSModel, grass_translate, projection);
 
         // drawing balloon model
         model = glm::mat4(1.0f);
@@ -320,13 +312,7 @@ int main() {
         DrawAllStationeryModels(stationery_models, airBalloonShader);
 
         // drawing skybox
-        glDepthFunc(GL_LEQUAL);
-        skyboxShader.use();
-        view = glm::mat4(glm::mat3(programState->camera->GetViewMatrix()));
-        skyboxShader.setMat4("projection", projection);
-        skyboxShader.setMat4("view", view);
-        skyboxSModel.Draw(GL_TRIANGLES, true);
-        glDepthFunc(GL_LESS);
+        DrawSkybox(skyboxShader, skyboxSModel, projection);
 
         DrawImGuiInfoWindows();
         DrawCVarAndAxis(window, axisShader, axisSModel, axisColor, projection);
@@ -355,109 +341,120 @@ int main() {
     skyboxSModel.Destroy();
     // glfw: terminate, clearing all previously allocated GLFW resources.
     glfwTerminate();
+
     return 0;
 }
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-void processInput(GLFWwindow *window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+void processInput(GLFWwindow *window)
+{
+    if(programState->isCVars)
+        return;
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        if(mainModelState->mmAngle > -100.f)
+        if(programState->camera == fps_camera)
         {
-            mainModelState->mmAngle -= 0.1f;
+            programState->camera->ProcessKeyboard(FORWARD, deltaTime);
         }
-        if(mainModelState->mmTurnAngle > 0.f)
+        else
         {
-            mainModelState->mmTurnAngle -= .5f;
+            if (mainModelState->mmAngle > -100.f)
+                mainModelState->mmAngle -= 0.1f;
+            if (mainModelState->mmTurnAngle > 0.f)
+                mainModelState->mmTurnAngle -= .5f;
+            if (mainModelState->mmTurnAngle < 0.f)
+                mainModelState->mmTurnAngle += .5f;
+            mainModelState->mmPosition.z += mainModelState->mmSpeed * deltaTime;
+            programState->camera->updateCameraVectors(mainModelState->mmPosition);
         }
-        if(mainModelState->mmTurnAngle < 0.f)
-        {
-            mainModelState->mmTurnAngle += .5f;
-        }
-        mainModelState->mmPosition.z += mainModelState->mmSpeed;
-        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-        programState->camera->ProcessKeyboard(FORWARD, deltaTime);
     }
+
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        if(mainModelState->mmAngle < -75.f)
+        if(programState->camera == fps_camera)
         {
-            mainModelState->mmAngle += 0.1f;
+            programState->camera->ProcessKeyboard(BACKWARD, deltaTime);
         }
-        mainModelState->mmPosition.z -= mainModelState->mmSpeed;
-        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-
-        programState->camera->ProcessKeyboard(BACKWARD, deltaTime);
+        else
+        {
+            if (mainModelState->mmAngle < -75.f)
+                mainModelState->mmAngle += 0.1f;
+            mainModelState->mmPosition.z -= mainModelState->mmSpeed * deltaTime;
+            programState->camera->updateCameraVectors(mainModelState->mmPosition);
+        }
     }
+
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        if(mainModelState->mmRotation.z > -0.3f)
+        if(programState->camera == fps_camera)
         {
-            mainModelState->mmRotation.z -= 0.002f;
-            if(mainModelState->mmTurnAngle < 90.f)
-            {
-                mainModelState->mmTurnAngle += .5f;
-            }
+            programState->camera->ProcessKeyboard(LEFT, deltaTime);
         }
-        mainModelState->mmPosition.x += mainModelState->mmSpeed;
-        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-
-        programState->camera->ProcessKeyboard(LEFT, deltaTime);
+        else
+        {
+            if (mainModelState->mmRotation.z > -0.3f)
+            {
+                mainModelState->mmRotation.z -= 0.002f;
+                if (mainModelState->mmTurnAngle < 90.f)
+                    mainModelState->mmTurnAngle += .5f;
+            }
+            mainModelState->mmPosition.x += mainModelState->mmSpeed * deltaTime;
+            programState->camera->updateCameraVectors(mainModelState->mmPosition);
+        }
     }
+
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        if(mainModelState->mmRotation.z < 0.3f)
+        if(programState->camera == fps_camera)
         {
-            mainModelState->mmRotation.z += 0.002f;
-            if(mainModelState->mmTurnAngle > -90.f)
-            {
-                mainModelState->mmTurnAngle -= .5f;
-            }
+            programState->camera->ProcessKeyboard(RIGHT, deltaTime);
         }
-        mainModelState->mmPosition.x -= mainModelState->mmSpeed;
-        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-
-        programState->camera->ProcessKeyboard(RIGHT, deltaTime);
+        else
+        {
+            if (mainModelState->mmRotation.z < 0.3f)
+            {
+                mainModelState->mmRotation.z += 0.002f;
+                if (mainModelState->mmTurnAngle > -90.f)
+                    mainModelState->mmTurnAngle -= .5f;
+            }
+            mainModelState->mmPosition.x -= mainModelState->mmSpeed * deltaTime;
+            programState->camera->updateCameraVectors(mainModelState->mmPosition);
+        }
     }
 
-    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && programState->camera == tpp_camera)
     {
         mainModelState->mmUp += 0.01f;
         mainModelState->mmPosition.y = glm::log(mainModelState->mmUp+1.0f) * mainModelState->mmUpSens;
         programState->camera->updateCameraVectors(mainModelState->mmPosition);
     }
 
-    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS && programState->camera == tpp_camera)
     {
         mainModelState->mmUp = mainModelState->mmUp>=0 ? mainModelState->mmUp-0.01f : 0.0f;
         if(mainModelState->mmUp >= 0.f)
             mainModelState->mmPosition.y = glm::log(mainModelState->mmUp+1.0f) * mainModelState->mmUpSens;
         programState->camera->updateCameraVectors(mainModelState->mmPosition);
     }
-//    if(glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
-//    {
-//        programState->camera = fps_camera;
-//        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-//    }
-//    if(glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS)
-//    {
-//        programState->camera = tpp_camera;
-//        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-//    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow *window, int width, int height)
+{
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
 
 // glfw: whenever the mouse moves, this callback is called
-void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
-    if (programState->firstMouse) {
+void mouse_callback(GLFWwindow *window, double xpos, double ypos)
+{
+    if(programState->isCVars)
+        return;
+
+    if (programState->firstMouse)
+    {
         programState->lastX = xpos;
         programState->lastY = ypos;
         programState->firstMouse = false;
@@ -466,23 +463,66 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
     float yoffset = programState->lastY - ypos; // reversed since y-coordinates go from bottom to top
     programState->lastX = xpos;
     programState->lastY = ypos;
-//    int leftClick = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-//    if (leftClick == GLFW_PRESS)
-//    {
-        programState->camera->ProcessMouseMovement(xoffset, yoffset);
-        programState->camera->updateCameraVectors(mainModelState->mmPosition);
-//    }
+    programState->camera->ProcessMouseMovement(xoffset, yoffset);
+    programState->camera->updateCameraVectors(mainModelState->mmPosition);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
+{
+    if(programState->isCVars)
+        return;
+
     programState->camera->ProcessMouseScroll(yoffset);
 }
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_GRAVE_ACCENT && action == GLFW_PRESS) {
+    // if the cvar window is opened, then just close it, but don't exit the game. If it is closed, then shut down the game
+    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    {
+        if(!programState->isCVars)
+            glfwSetWindowShouldClose(window, true);
+        programState->isCVars = false;
+    }
+
+    if (key == GLFW_KEY_GRAVE_ACCENT && action == GLFW_PRESS)
         programState->isCVars = !programState->isCVars;
+}
+
+void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projection)
+{
+    glDepthFunc(GL_LEQUAL);
+    shader.use();
+    glm::mat4 view = glm::mat4(glm::mat3(programState->camera->GetViewMatrix()));
+    shader.setMat4("projection", projection);
+    shader.setMat4("view", view);
+    skyboxModel.Draw(GL_TRIANGLES, true);
+    glDepthFunc(GL_LESS);
+}
+
+void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos, glm::mat4 projection)
+{
+    glm::mat4 view = programState->camera->GetViewMatrix();
+    glm::mat4 model = glm::mat4(1.0f);
+    // ground plane
+    glEnable(GL_CULL_FACE);
+    shader.use();
+    shader.setMat4("projection", projection);
+    shader.setMat4("view", view);
+    shader.setMat4("model", model);
+    grassPlane.Draw(GL_TRIANGLES);
+    glDisable(GL_CULL_FACE);
+    // grass
+    for(int i=0; i<grassPos.size(); ++i)
+    {
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, grassPos[i]);
+        if(i<grassPos.size()/2)
+            model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+        shader.setMat4("model", model);
+        grass.Draw(GL_TRIANGLES);
     }
 }
 
@@ -533,7 +573,7 @@ void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader)
     statModels[5].Draw(shader);
 }
 
-void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, const glm::mat4 projection)
+void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection)
 {
     // drawing axis
     glm::mat4 model = glm::mat4(1.0f);
@@ -551,7 +591,9 @@ void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<g
 
 void DrawImGuiInfoWindows()
 {
-    // tree house
+    if(programState->camera == fps_camera || programState->isCVars)
+        return;
+
     if(mainModelState->mmPosition.x<=0.0 && mainModelState->mmPosition.x>=-4.0
        && mainModelState->mmPosition.z>=0.0 && mainModelState->mmPosition.z<=4.0)
     {
@@ -563,7 +605,6 @@ void DrawImGuiInfoWindows()
                     "Try to get closer to the structures around the area to find out more about them!\n");
         ImGui::End();
     }
-//        model = glm::translate(model, glm::vec3(0.f, 0.f, 15.f));
     else if(mainModelState->mmPosition.x<=4.0 && mainModelState->mmPosition.x>=-4.0
             && mainModelState->mmPosition.z>=11.0 && mainModelState->mmPosition.z<=19.0)
     {
@@ -576,7 +617,6 @@ void DrawImGuiInfoWindows()
                     " than two open arms.");
         ImGui::End();
     }
-//        model = glm::translate(model, glm::vec3(15.f, 0.f, 10.f));
     else if(mainModelState->mmPosition.x<=19.0 && mainModelState->mmPosition.x>=11.0
             && mainModelState->mmPosition.z>=6.0 && mainModelState->mmPosition.z<=14.0)
     {
@@ -589,9 +629,8 @@ void DrawImGuiInfoWindows()
         ImGui::End();
     }
 
-//        model = glm::translate(model, glm::vec3(-20.f, 0.f, -5.f));
-    else if(mainModelState->mmPosition.x<=-16.0 && mainModelState->mmPosition.x>=-24.0
-            && mainModelState->mmPosition.z>=-9.0 && mainModelState->mmPosition.z<=-1.0)
+    else if(mainModelState->mmPosition.x<=-14.0 && mainModelState->mmPosition.x>=-26.0
+            && mainModelState->mmPosition.z>=-11.0 && mainModelState->mmPosition.z<=1.0)
     {
         ImGui::Begin("Big Ben");
         ImGui::SetWindowPos(ImVec2(60.0, 500.0));
@@ -601,14 +640,13 @@ void DrawImGuiInfoWindows()
                     "Despite that, Big Ben became the nickname for the whole clock-tower.");
         ImGui::End();
     }
-//        model = glm::translate(model, glm::vec3(5.f, 0.f, -15.f));
-    else if(mainModelState->mmPosition.x<=9.0 && mainModelState->mmPosition.x>=1.0
-            && mainModelState->mmPosition.z>=-19.0 && mainModelState->mmPosition.z<=-11.0)
+    else if(mainModelState->mmPosition.x<=11.0 && mainModelState->mmPosition.x>=-1.0
+            && mainModelState->mmPosition.z>=-21.0 && mainModelState->mmPosition.z<=-9.0)
     {
         ImGui::Begin("Statue of Liberty");
         ImGui::SetWindowPos(ImVec2(60.0, 500.0));
         ImGui::Text("The Statue of Liberty is a colossal copper statue, a gift from the people of France located\n"
-                    "in New York City, USA\n"
+                    "in New York City, USA.\n"
                     "The statue is 93m high!\n"
                     "It was originally intended for Egypt and it would have called Egypt Carrying the Light to Asia,\n"
                     "but the project was rejected due to its cost and the idea was recycled to be The Statue of Liberty.");
@@ -626,14 +664,10 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
         ImGui::Begin("CVARS");
         ImGui::SetWindowSize(ImVec2(450.f, 110.f));
         if(ImGui::RadioButton("TPP Camera", programState->camera == tpp_camera))
-        {
             programState->camera = tpp_camera;
-        }
         else if(ImGui::RadioButton("FPS Camera", programState->camera == fps_camera))
-        {
             programState->camera = fps_camera;
-        }
-        ImGui::DragFloat("Air Balloon speed", &mainModelState->mmSpeed, 0.001f, 0.01f, 0.09f);
+        ImGui::DragFloat("Air Balloon speed", &mainModelState->mmSpeed, 0.1f, 0.1f, 2.f);
         ImGui::End();
     }
     else
