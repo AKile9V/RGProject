@@ -31,7 +31,7 @@ void main()
     vec3 viewDir = normalize(viewPos - FragPos);
     vec4 result = CalcDirLight(dirLight, norm, viewDir);
 
-    if(result.a/3.0 < 0.4)
+    if(result.a/3.0 < 0.7)
        discard;
 	FragColor = vec4(result.xyz, 1.0);
 }

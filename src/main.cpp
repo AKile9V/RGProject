@@ -31,8 +31,11 @@ void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projec
 void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos, glm::mat4 projection);
 void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader);
 void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
+void SetDirectionalLightParameters(Shader &shader);
 void DrawImGuiInfoWindows();
 void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
+void DrawAirBalloon(Shader &shader, Model &mm, glm::mat4 projection);
+void AirBalloonIdleEvent(GLFWwindow *window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -62,6 +65,12 @@ struct ProgramState {
     float lastY = SCR_HEIGHT / 2.0f;
 
     bool isCVars = false;
+
+    // Directional Light is in this scenario Sun and its parameters should be the same for all objects on the scene
+    glm::vec3 dirLight = glm::vec3(0.1f, -1.2f, 1.f);
+    glm::vec3 dirAmbient = glm::vec3(0.54f, 0.54f, 0.5f);
+    glm::vec3 dirDiffuse = glm::vec3(0.95f, 0.9f, 0.65f);
+    glm::vec3 dirSpecular = glm::vec3(0.3f, 0.3f, 0.3f);
 
     ProgramState() = default;
 };
@@ -130,7 +139,7 @@ int main() {
 
     // build and compile shaders
     Shader axisShader("resources/shaders/axisshader.vs", "resources/shaders/axisshader.fs");
-    Shader airBalloonShader("resources/shaders/airballoonshader.vs", "resources/shaders/airballoonshader.fs");
+    Shader modelShader("resources/shaders/modelshader.vs", "resources/shaders/modelshader.fs");
     Shader grassPlaneShader("resources/shaders/grassplaneshader.vs", "resources/shaders/grassplaneshader.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
 
@@ -187,7 +196,9 @@ int main() {
         30.0f, 0.0f, -30.0f,  0.0f, 1.0f, 0.0f,  20.0f, 20.0f
     };
     SimpleModel grassPlaneSModel(grass_plane_vertices, true, true);
-    grassPlaneSModel.AddTexture("resources/textures/plane.jpg", "texture1", 0, grassPlaneShader);
+    grassPlaneSModel.AddTexture("resources/textures/plane.jpg", "material.diffuse", 0, grassPlaneShader, GL_REPEAT);
+    grassPlaneSModel.AddTexture("resources/textures/plane_specular.png", "material.specular", 1, grassPlaneShader, GL_REPEAT);
+    grassPlaneSModel.AddTexture("resources/textures/plane_ambient.jpg", "material.ambient", 2, grassPlaneShader, GL_REPEAT);
     // grass
     std::vector<float> grass_vertices
     {
@@ -200,7 +211,8 @@ int main() {
         0.f, 1.f, 0.0f, 0.0f, 1.0f
     };
     SimpleModel grassSModel(grass_vertices, false, true);
-    grassSModel.AddTexture("resources/textures/grass.png", "texture1", 0, grassPlaneShader);
+    grassSModel.AddTexture("resources/textures/grass.png", "material.diffuse", 0, grassPlaneShader);
+    grassSModel.AddTexture("resources/textures/grass.png", "material.ambient", 1, grassPlaneShader);
     std::vector<glm::vec3> grass_translate;
     for(int i=0; i<1000; i++)
     {
@@ -290,30 +302,20 @@ int main() {
         // projection, view
         projection = glm::perspective(glm::radians(programState->camera->Zoom),
                                       (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        view = programState->camera->GetViewMatrix();
-
         // drawing grass plane model
         DrawGrassGround(grassPlaneShader, grassPlaneSModel, grassSModel, grass_translate, projection);
 
+        SetDirectionalLightParameters(modelShader);
+        // drawing other static models
+        DrawAllStationeryModels(stationery_models, modelShader);
         // drawing balloon model
-        model = glm::mat4(1.0f);
-        airBalloonShader.use();
-        airBalloonShader.setMat4("projection", projection);
-        airBalloonShader.setMat4("view", view);
-        model = glm::translate(model, mainModelState->mmPosition);
-        model = glm::rotate(model, glm::radians(mainModelState->mmAngle), mainModelState->mmRotation);
-        model = glm::rotate(model, glm::radians(mainModelState->mmTurnAngle), glm::vec3(0.f, 0.f, 1.f));
-        model = glm::scale(model, glm::vec3(.0009f, .0009f, 0.0007f));
-        airBalloonShader.setMat4("model", model);
-        hot_air_balloon.Draw(airBalloonShader);
-        mainModelState->mmAngle += mainModelState->mmAngle >=-90.f ? -0.04 : 0.04;
-        mainModelState->mmRotation.z += mainModelState->mmRotation.z >= 0.f ? -0.001 : 0.001;
-        //  drawing other static models
-        DrawAllStationeryModels(stationery_models, airBalloonShader);
+        DrawAirBalloon(modelShader, hot_air_balloon, projection);
+        AirBalloonIdleEvent(window);
 
         // drawing skybox
         DrawSkybox(skyboxShader, skyboxSModel, projection);
 
+        // drawing ImGui windows
         DrawImGuiInfoWindows();
         DrawCVarAndAxis(window, axisShader, axisSModel, axisColor, projection);
 
@@ -348,7 +350,7 @@ int main() {
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 void processInput(GLFWwindow *window)
 {
-    if(programState->isCVars)
+    if(programState->isCVars && programState->camera == tpp_camera)
         return;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -357,7 +359,7 @@ void processInput(GLFWwindow *window)
         {
             programState->camera->ProcessKeyboard(FORWARD, deltaTime);
         }
-        else
+        else if(mainModelState->mmPosition.y >=0.5)
         {
             if (mainModelState->mmAngle > -100.f)
                 mainModelState->mmAngle -= 0.1f;
@@ -376,7 +378,7 @@ void processInput(GLFWwindow *window)
         {
             programState->camera->ProcessKeyboard(BACKWARD, deltaTime);
         }
-        else
+        else if(mainModelState->mmPosition.y >=0.5)
         {
             if (mainModelState->mmAngle < -75.f)
                 mainModelState->mmAngle += 0.1f;
@@ -391,7 +393,7 @@ void processInput(GLFWwindow *window)
         {
             programState->camera->ProcessKeyboard(LEFT, deltaTime);
         }
-        else
+        else if(mainModelState->mmPosition.y >=0.5)
         {
             if (mainModelState->mmRotation.z > -0.3f)
             {
@@ -410,7 +412,7 @@ void processInput(GLFWwindow *window)
         {
             programState->camera->ProcessKeyboard(RIGHT, deltaTime);
         }
-        else
+        else if(mainModelState->mmPosition.y >=0.5)
         {
             if (mainModelState->mmRotation.z < 0.3f)
             {
@@ -450,7 +452,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 // glfw: whenever the mouse moves, this callback is called
 void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 {
-    if(programState->isCVars)
+    if(programState->isCVars && programState->camera == tpp_camera)
         return;
 
     if (programState->firstMouse)
@@ -505,15 +507,13 @@ void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass
 {
     glm::mat4 view = programState->camera->GetViewMatrix();
     glm::mat4 model = glm::mat4(1.0f);
-    // ground plane
-    glEnable(GL_CULL_FACE);
     shader.use();
-    shader.setMat4("projection", projection);
-    shader.setMat4("view", view);
-    shader.setMat4("model", model);
-    grassPlane.Draw(GL_TRIANGLES);
-    glDisable(GL_CULL_FACE);
-    // grass
+
+    // grass is using custom light parameters because it doesn't have any additional tex maps
+    shader.setVec3("viewPos", programState->camera->Position);
+    shader.setVec3("dirLight.direction", programState->dirLight);
+    shader.setVec3("dirLight.ambient", 1.f, 1.f, 1.f);
+    shader.setVec3("dirLight.diffuse", 1.f, 1.f, 1.f);
     for(int i=0; i<grassPos.size(); ++i)
     {
         model = glm::mat4(1.0f);
@@ -522,7 +522,50 @@ void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass
             model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         shader.setMat4("model", model);
+        shader.setMat4("projection", projection);
+        shader.setMat4("view", view);
         grass.Draw(GL_TRIANGLES);
+    }
+    // ground plane
+    SetDirectionalLightParameters(shader);
+    model = glm::mat4(1.0f);
+    glEnable(GL_CULL_FACE);
+    shader.setMat4("projection", projection);
+    shader.setMat4("view", view);
+    shader.setMat4("model", model);
+    grassPlane.Draw(GL_TRIANGLES);
+    glDisable(GL_CULL_FACE);
+}
+
+void DrawAirBalloon(Shader &shader, Model &mm, glm::mat4 projection)
+{
+    shader.use();
+    glm::mat4 model = glm::mat4(1.0f);
+    shader.setMat4("projection", projection);
+    shader.setMat4("view", programState->camera->GetViewMatrix());
+    model = glm::translate(model, mainModelState->mmPosition);
+    model = glm::rotate(model, glm::radians(mainModelState->mmAngle), mainModelState->mmRotation);
+    model = glm::rotate(model, glm::radians(mainModelState->mmTurnAngle), glm::vec3(0.f, 0.f, 1.f));
+    model = glm::scale(model, glm::vec3(.0009f, .0009f, 0.0007f));
+    shader.setMat4("model", model);
+    mm.Draw(shader);
+}
+
+void AirBalloonIdleEvent(GLFWwindow *window)
+{
+    mainModelState->mmAngle += mainModelState->mmAngle >=-90.f ? -0.04 : 0.04;
+    mainModelState->mmRotation.z += mainModelState->mmRotation.z >= 0.f ? -0.001 : 0.001;
+    int space = glfwGetKey(window, GLFW_KEY_SPACE);
+    int shift = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT);
+    if(mainModelState->mmPosition.y >= 0.5 && (space != GLFW_PRESS || shift != GLFW_PRESS))
+    {
+        mainModelState->mmPosition.y += sin(glfwGetTime())*0.05f*deltaTime;
+        programState->camera->updateCameraVectors(mainModelState->mmPosition);
+    }
+    else if(mainModelState->mmPosition.y <= 0.5 && mainModelState->mmPosition.y >= 0.0)
+    {
+        mainModelState->mmPosition.y -= 0.001f;
+                programState->camera->updateCameraVectors(mainModelState->mmPosition);
     }
 }
 
@@ -674,4 +717,15 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
     {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
+}
+
+void SetDirectionalLightParameters(Shader &shader)
+{
+    shader.use();
+    shader.setVec3("viewPos", programState->camera->Position);
+    shader.setVec3("dirLight.direction", programState->dirLight);
+    shader.setVec3("dirLight.ambient", programState->dirAmbient);
+    shader.setVec3("dirLight.diffuse", programState->dirDiffuse);
+    shader.setVec3("dirLight.specular", programState->dirSpecular);
+    shader.setFloat("material.shininess", 32.f);
 }

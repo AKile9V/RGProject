@@ -29,7 +29,7 @@ private:
     unsigned int VBO, VAO;
 //    unsigned int EBO;
 
-    unsigned int loadTexture(const char *path)
+    unsigned int loadTexture(const char *path, int wrapParam)
     {
         unsigned int textureID;
         glGenTextures(1, &textureID);
@@ -50,8 +50,16 @@ private:
             glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
             glGenerateMipmap(GL_TEXTURE_2D);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+            if(wrapParam == GL_REPEAT || wrapParam ==  GL_CLAMP_TO_EDGE)
+            {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapParam);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapParam);
+            }
+            else
+            {
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+            }
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -191,9 +199,9 @@ public:
         glDeleteBuffers(1, &VBO);
     }
 
-    void AddTexture(const std::string &path, const std::string &name, int value, Shader &shader)
+    void AddTexture(const std::string &path, const std::string &name, int value, Shader &shader, int wrapParam=0)
     {
-        unsigned int textureID = loadTexture(FileSystem::getPath(path).c_str());
+        unsigned int textureID = loadTexture(FileSystem::getPath(path).c_str(), wrapParam);
         texIDs.push_back(textureID);
         shader.use();
         shader.setInt(name, value);
