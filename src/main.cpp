@@ -31,7 +31,7 @@ void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projec
 void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos, glm::mat4 projection);
 void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader, glm::mat4 projection);
 void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
-void SetDirectionalLightParameters(Shader &shader);
+void SetLightParameters(Shader &shader);
 void DrawImGuiInfoWindows();
 void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection);
 void DrawAirBalloon(Shader &shader, Model &mm, glm::mat4 projection);
@@ -305,7 +305,7 @@ int main() {
         // drawing grass plane model
         DrawGrassGround(grassPlaneShader, grassPlaneSModel, grassSModel, grass_translate, projection);
 
-        SetDirectionalLightParameters(modelShader);
+        SetLightParameters(modelShader);
         // drawing other static models
         DrawAllStationeryModels(stationery_models, modelShader, projection);
         // drawing balloon model
@@ -527,7 +527,7 @@ void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass
         grass.Draw(GL_TRIANGLES);
     }
     // ground plane
-    SetDirectionalLightParameters(shader);
+    SetLightParameters(shader);
     model = glm::mat4(1.0f);
     glEnable(GL_CULL_FACE);
     shader.setMat4("projection", projection);
@@ -723,8 +723,7 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
     }
 }
 
-void SetDirectionalLightParameters(Shader &shader)
-{
+void SetLightParameters(Shader &shader) {
     shader.use();
     shader.setVec3("viewPos", programState->camera->Position);
     shader.setVec3("dirLight.direction", programState->dirLight);
@@ -732,4 +731,26 @@ void SetDirectionalLightParameters(Shader &shader)
     shader.setVec3("dirLight.diffuse", programState->dirDiffuse);
     shader.setVec3("dirLight.specular", programState->dirSpecular);
     shader.setFloat("material.shininess", 32.f);
+
+    if (programState->camera == tpp_camera)
+    {
+        shader.setVec3("spotLight.position", mainModelState->mmPosition);
+        shader.setVec3("spotLight.direction", programState->camera->Front);
+        shader.setVec3("spotLight.ambient", 0.1f, 0.0f, 0.0f);
+        shader.setVec3("spotLight.diffuse", 1.0f, 0.0f, 0.2f);
+        shader.setVec3("spotLight.specular", 1.0f, .0f, .0f);
+        shader.setFloat("spotLight.constant", 1.0f);
+        shader.setFloat("spotLight.linear", 0.09f);
+        shader.setFloat("spotLight.quadratic", 0.05);
+        shader.setFloat("spotLight.cutOff", glm::cos(glm::radians(6.5f)));
+        shader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(10.5f)));
+    }
+
+    shader.setVec3("pointLight.position", 2.365f, 20.556f, -13.26f);
+    shader.setVec3("pointLight.ambient", 0.98f, 1.f, 0.2f);
+    shader.setVec3("pointLight.diffuse", 0.98f, 1.f, 0.2f);
+    shader.setVec3("pointLight.specular", 0.98f, 1.0f, 0.2f);
+    shader.setFloat("pointLight.constant", 1.0f);
+    shader.setFloat("pointLight.linear", 0.09);
+    shader.setFloat("pointLight.quadratic", 0.032);
 }
