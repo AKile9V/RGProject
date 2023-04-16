@@ -1,11 +1,26 @@
-# project_base
-Prazan projekat sa pratećim bibliotekama koje koristimo na času. 
+## AirGasBag
 
-# Uputstvo
-1. `git clone https://github.com/matf-racunarska-grafika/project_base.git`
-2. CLion -> Open -> path/to/my/project_base
-3. Main se nalazi u src/main.cpp
-4. Cpp fajlovi idu u src folder
-5. Zaglavlja (h i hpp) fajlovi idu u include
-6. Šejderi idu u folder shaders. `Vertex shader` ima ekstenziju `.vs`, `fragment shader` ima ekstenziju `.fs`
-7. ALT+SHIFT+F10 -> project_base -> run
+### University project for the purpose of the Computer Graphics course.
+Try to fly around and find out some interesting facts about structures around you!
+
+## KEYBINDS:
+`W` - Forward(toward positive Z axis) <br>
+`S` - Backawrd((toward negative Z axis) <br>
+`A` - Left(toward positive X axis) <br>
+`D` - Right(toward negative X axis) <br>
+`SPACE` - Up <br>
+`SHIFT` - Down <br>
+`~` - Settings (console window) <br>
+`ESC` - Exit <br>
+## Mouse:
+`MOUSE` - Rotate the camera <br>
+`MOUSE Scroll` - Zoom <br>
+
+## Implemented:
+- Mandatory:
+   - [x] [Lessons 1-8.](https://matf-racunarska-grafika.github.io/materijali/) 
+   - [x] [Blending](https://learnopengl.com/Advanced-OpenGL/Blending)
+   - [x] [Face culling](https://learnopengl.com/Advanced-OpenGL/Face-culling)
+   - [x] [Advanced lighting](https://learnopengl.com/Advanced-Lighting/Advanced-Lighting) <br>
+- Group A:
+   - [x] [Cubemaps](https://learnopengl.com/Advanced-OpenGL/Cubemaps) <br>
