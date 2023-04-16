@@ -6,6 +6,7 @@
 project_base
 program_state.txt
 imgui.ini
+save_*.txt
 
 ### bin ###
 bin/

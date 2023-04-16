@@ -27,6 +27,10 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
+void SaveStateSettings(const std::string& mainModel, const std::string& settings);
+void LoadStateSettings(const std::string& mainModel, const std::string& settings);
+
+
 void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projection);
 void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos, glm::mat4 projection);
 void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader, glm::mat4 projection);
@@ -37,14 +41,11 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
 void DrawAirBalloon(Shader &shader, Model &mm, glm::mat4 projection);
 void AirBalloonIdleEvent(GLFWwindow *window);
 
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// Air balloon settings
 struct MainModelState {
     glm::vec3 mmPosition = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 mmRotation = glm::vec3(1.0f, .0f, .0f);
@@ -56,15 +57,20 @@ struct MainModelState {
 
     MainModelState() = default;
 };
-
+// default program settings
 struct ProgramState {
+    // window settings
+    unsigned int SCR_WIDTH = 1920;
+    unsigned int SCR_HEIGHT = 1080;
     // camera options
     Camera *camera = nullptr;
     bool firstMouse = true;
     float lastX = SCR_WIDTH / 2.0f;
     float lastY = SCR_HEIGHT / 2.0f;
-
+    // imgui options
     bool isCVars = false;
+    float scaleWidth = SCR_WIDTH/3.0f;
+    float scaleHeight = SCR_HEIGHT/1.1f;
 
     // Directional Light is in this scenario Sun and its parameters should be the same for all objects on the scene
     glm::vec3 dirLight = glm::vec3(0.1f, -1.2f, 1.f);
@@ -79,7 +85,17 @@ MainModelState *mainModelState;
 FPSCamera *fps_camera;
 TPPCamera *tpp_camera;
 
-int main() {
+int main()
+{
+    // setup and load default variables
+    programState = new ProgramState;
+    mainModelState = new MainModelState;
+    fps_camera = new FPSCamera(glm::vec3(.5f, .8f, -3.0f), glm::vec3(0.0f, 1.0f, 0.0f), 90.f);
+    tpp_camera = new TPPCamera(glm::vec3(.0f, .0f, 0.f), mainModelState->mmPosition,
+                               glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
+    programState->camera = tpp_camera;
+    LoadStateSettings("save_position.txt", "save_settings.txt");
+
     // glfw: initialize and configure
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -89,8 +105,9 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    // glfw window creation                                                                              full screen
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL/*glfwGetPrimaryMonitor()*/, NULL);
+    // glfw window creation
+    GLFWwindow *window = glfwCreateWindow(programState->SCR_WIDTH, programState->SCR_HEIGHT,"AirGasBag",
+                                          glfwGetPrimaryMonitor(), NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -109,15 +126,6 @@ int main() {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
-    // default ProgramState setup
-    programState = new ProgramState;
-    mainModelState = new MainModelState;
-    fps_camera = new FPSCamera(glm::vec3(.5f, .8f, -3.0f), glm::vec3(0.0f, 1.0f, 0.0f), 90.f);
-    tpp_camera = new TPPCamera(glm::vec3(.0f, .0f, 0.f), mainModelState->mmPosition,
-                               glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
-    programState->camera = tpp_camera;
-
 
     // Init Imgui
     IMGUI_CHECKVERSION();
@@ -151,6 +159,7 @@ int main() {
     Model pisa_tower("resources/objects/pisa_tower/10076_pisa_tower_v1_max2009_it0.obj");
     Model big_ben("resources/objects/big_ben/10059_big_ben_v2_max2011_it1.obj");
     Model christ_redeemer("resources/objects/christ_redeemer/12331_Christ_Rio_V1_L1.obj");
+    // some models' textures are flipped correctly
     stbi_set_flip_vertically_on_load(true);
     Model liberty_statue("resources/objects/liberty_statue/LibertStatue.obj");
     Model tree("resources/objects/tree/Tree.obj");
@@ -264,6 +273,7 @@ int main() {
         -1.0f, -1.0f,  1.0f,
         1.0f, -1.0f,  1.0f
     };
+    // skybox faces
     vector<std::string> faces
     {
         FileSystem::getPath("resources/textures/skybox/right.jpg"),
@@ -301,24 +311,23 @@ int main() {
 
         // projection, view
         projection = glm::perspective(glm::radians(programState->camera->Zoom),
-                                      (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+                                      (float)programState->SCR_WIDTH / (float)programState->SCR_HEIGHT, 0.1f, 100.0f);
         // drawing grass plane model
         DrawGrassGround(grassPlaneShader, grassPlaneSModel, grassSModel, grass_translate, projection);
-
+        // set all lights parameters
         SetLightParameters(modelShader);
         // drawing other static models
         DrawAllStationeryModels(stationery_models, modelShader, projection);
         // drawing balloon model
         DrawAirBalloon(modelShader, hot_air_balloon, projection);
+        // idle "animation"
         AirBalloonIdleEvent(window);
-
         // drawing skybox
         DrawSkybox(skyboxShader, skyboxSModel, projection);
 
         // drawing ImGui windows
         DrawImGuiInfoWindows();
         DrawCVarAndAxis(window, axisShader, axisSModel, axisColor, projection);
-
         // ImGui render
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -327,6 +336,8 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    SaveStateSettings("save_position.txt", "save_settings.txt");
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -645,7 +656,7 @@ void DrawImGuiInfoWindows()
        && mainModelState->mmPosition.z>=0.0 && mainModelState->mmPosition.z<=4.0)
     {
         ImGui::Begin("Welcome Home!");
-        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::SetWindowPos(ImVec2(programState->scaleWidth, programState->scaleHeight));
         ImGui::Text("Hello traveler!\nUse your W-A-S-D keys to move around the map.\n"
                     "You can go up and down with your SPACE and SHIFT keys.\n"
                     "Also, you can rotate your camera around the air balloon using your mouse, for better views!\n"
@@ -656,7 +667,7 @@ void DrawImGuiInfoWindows()
             && mainModelState->mmPosition.z>=11.0 && mainModelState->mmPosition.z<=19.0)
     {
         ImGui::Begin("Christ the Redeemer");
-        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::SetWindowPos(ImVec2(programState->scaleWidth, programState->scaleHeight));
         ImGui::Text("This is statue of Jesus Christ located in Rio de Janeiro, Brazil.\n"
                     "The statue is 30 meters high!\n"
                     "The original design of the Christ the Redeemer statue was different to what we see today.\n"
@@ -668,7 +679,7 @@ void DrawImGuiInfoWindows()
             && mainModelState->mmPosition.z>=6.0 && mainModelState->mmPosition.z<=14.0)
     {
         ImGui::Begin("Leaning Tower of Pisa");
-        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::SetWindowPos(ImVec2(programState->scaleWidth, programState->scaleHeight));
         ImGui::Text("The Tower of Pisa is freestanding bell tower of Pisa Cathedral located in Pisa, Italy.\n"
                     "The tower is 55m high!\n"
                     "The leaning of the tower is due to both a wrong assumption and poor engineering, but still, it\n"
@@ -680,7 +691,7 @@ void DrawImGuiInfoWindows()
             && mainModelState->mmPosition.z>=-11.0 && mainModelState->mmPosition.z<=1.0)
     {
         ImGui::Begin("Big Ben");
-        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::SetWindowPos(ImVec2(programState->scaleWidth, programState->scaleHeight));
         ImGui::Text("Big Ben is the nickname for the Great Bell of the Elizabeth Tower located in London, England.\n"
                     "The tower itself is 96m high!\n"
                     "The name Big Ben does not refer to the clock or the tower, but to the bell inside the tower!\n"
@@ -691,7 +702,7 @@ void DrawImGuiInfoWindows()
             && mainModelState->mmPosition.z>=-21.0 && mainModelState->mmPosition.z<=-9.0)
     {
         ImGui::Begin("Statue of Liberty");
-        ImGui::SetWindowPos(ImVec2(60.0, 500.0));
+        ImGui::SetWindowPos(ImVec2(programState->scaleWidth, programState->scaleHeight));
         ImGui::Text("The Statue of Liberty is a colossal copper statue, a gift from the people of France located\n"
                     "in New York City, USA.\n"
                     "The statue is 93m high!\n"
@@ -709,12 +720,35 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
         ImGui::Begin("CVARS");
-        ImGui::SetWindowSize(ImVec2(450.f, 110.f));
+        ImGui::SetWindowSize(ImVec2(450.f, 200.f));
         if(ImGui::RadioButton("TPP Camera", programState->camera == tpp_camera))
             programState->camera = tpp_camera;
         else if(ImGui::RadioButton("FPS Camera", programState->camera == fps_camera))
             programState->camera = fps_camera;
+
         ImGui::DragFloat("Air Balloon speed", &mainModelState->mmSpeed, 0.1f, 0.1f, 2.f);
+
+        ImGui::Text("Change resolution:\n");
+        if(ImGui::RadioButton("1920x1080", programState->SCR_WIDTH==1920 && programState->SCR_HEIGHT==1080))
+        {
+            programState->SCR_WIDTH = 1920;
+            programState->SCR_HEIGHT = 1080;
+            programState->scaleWidth = programState->SCR_WIDTH/3.0f;
+            programState->scaleHeight = programState->SCR_HEIGHT/1.1f;
+            glfwSetWindowSize(window, programState->SCR_WIDTH, programState->SCR_HEIGHT);
+            programState->lastX = programState->SCR_WIDTH/2.0;
+            programState->lastY = programState->SCR_HEIGHT/2.0;
+        }
+        else if(ImGui::RadioButton("800x600", programState->SCR_WIDTH==800 && programState->SCR_HEIGHT==600))
+        {
+            programState->SCR_WIDTH = 800;
+            programState->SCR_HEIGHT = 600;
+            programState->scaleWidth = programState->SCR_WIDTH/10.0f;
+            programState->scaleHeight = programState->SCR_HEIGHT/1.2f;
+            glfwSetWindowSize(window, programState->SCR_WIDTH, programState->SCR_HEIGHT);
+            programState->lastX = programState->SCR_WIDTH/2.0;
+            programState->lastY = programState->SCR_HEIGHT/2.0;
+        }
         ImGui::End();
     }
     else
@@ -753,4 +787,44 @@ void SetLightParameters(Shader &shader) {
     shader.setFloat("pointLight.constant", 1.0f);
     shader.setFloat("pointLight.linear", 0.09);
     shader.setFloat("pointLight.quadratic", 0.032);
+}
+
+void SaveStateSettings(const std::string& mainModel, const std::string& settings)
+{
+    std::ofstream mm(mainModel);
+    std::ofstream s(settings);
+
+    mm << mainModelState->mmPosition.x << "\n"
+        << mainModelState->mmPosition.y << "\n"
+        << mainModelState->mmPosition.z << "\n"
+        << mainModelState->mmSpeed << "\n"
+        << mainModelState->mmUp << "\n";
+
+    s << programState->SCR_WIDTH << "\n"
+      << programState->SCR_HEIGHT << "\n"
+      << programState->scaleWidth << "\n"
+      << programState->scaleHeight << "\n";
+}
+
+void LoadStateSettings(const std::string& mainModel, const std::string& settings)
+{
+    std::ifstream mm(mainModel);
+    std::ifstream s(settings);
+
+    if(mm)
+    {
+        mm  >> mainModelState->mmPosition.x
+            >> mainModelState->mmPosition.y
+            >> mainModelState->mmPosition.z
+            >> mainModelState->mmSpeed
+            >> mainModelState->mmUp;
+    }
+
+    if(s)
+    {
+        s  >> programState->SCR_WIDTH
+           >> programState->SCR_HEIGHT
+           >> programState->scaleWidth
+           >> programState->scaleHeight;
+    }
 }
