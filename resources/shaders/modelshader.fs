@@ -43,16 +43,24 @@ struct SpotLight {
     vec3 diffuse;
     vec3 specular;
 };
+uniform float far_plane;
+uniform samplerCube depthMap;
+uniform bool shadows;
 
 uniform vec3 viewPos;
 uniform Material material;
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform PointLight pointLight;
+uniform vec3 cameraPos;
 
+float ShadowCalculation(vec3 fragPos);
 vec4 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
+
+vec4 allAmbient = vec4(0.0);
+
 
 void main()
 {
@@ -61,10 +69,32 @@ void main()
     vec4 result = CalcDirLight(dirLight, norm, viewDir);
     result += CalcSpotLight(spotLight, norm, FragPos, viewDir);
     result += CalcPointLight(pointLight, norm, FragPos, viewDir);
+    result += allAmbient;
+    float shadow = shadows ? ShadowCalculation(FragPos) : 0.0;
 
     if(result.a/9.0 < 0.7)
        discard;
-	FragColor = vec4(result.xyz, 1.0);
+    result -= allAmbient;
+	FragColor = vec4((allAmbient.xyz)+(result.xyz)*(1.0-shadow), 1.0);
+}
+
+float ShadowCalculation(vec3 fragPos)
+{
+    // get vector between fragment position and light position
+    vec3 fragToLight = fragPos - pointLight.position;
+    // ise the fragment to light vector to sample from the depth map
+    float closestDepth = texture(depthMap, fragToLight).r;
+    // it is currently in linear range between [0,1], let's re-transform it back to original depth value
+    closestDepth *= far_plane;
+    // now get current linear depth as the length between the fragment and light position
+    float currentDepth = length(fragToLight);
+    // test for shadows
+    float bias = 0.05; // we use a much larger bias since depth is now in [near_plane, far_plane] range
+    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;
+    // display closestDepth as debug (to visualize depth cubemap)
+    // FragColor = vec4(vec3(closestDepth / far_plane), 1.0);
+
+    return shadow;
 }
 
 // I'm using vec4 just because I want to save the alpha parameter from texture() function and use it for Blending the grass
@@ -81,7 +111,8 @@ vec4 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)
     vec4 ambient = vec4(light.ambient, 1.0) * texture(material.ambient, TexCoord);
     vec4 diffuse = vec4(light.diffuse * diff, 1.0)  * texture(material.diffuse, TexCoord);
     vec4 specular = vec4(light.specular * spec, 1.0) * texture(material.specular, TexCoord);
-    return (ambient + diffuse + specular);
+    allAmbient += ambient;
+    return (diffuse + specular);
 }
 // calculates the color when using a spot light.
 vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
@@ -104,7 +135,8 @@ vec4 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     vec4 ambient = vec4(light.ambient * attInt, 1.0) * texture(material.ambient, TexCoord);
     vec4 diffuse = vec4(light.diffuse * diff * attInt, 1.0)  * texture(material.diffuse, TexCoord);
     vec4 specular = vec4(light.specular * spec * attInt, 1.0) * texture(material.specular, TexCoord);
-    return (ambient + diffuse + specular);
+    allAmbient += ambient;
+    return (diffuse + specular);
 }
 
 // calculates the color when using a point light.
@@ -123,5 +155,6 @@ vec4 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     vec4 ambient = vec4(light.ambient * attenuation, 1.0) * texture(material.ambient, TexCoord);
     vec4 diffuse = vec4(light.diffuse * diff * attenuation, 1.0)  * texture(material.diffuse, TexCoord);
     vec4 specular = vec4(light.specular * spec * attenuation, 1.0) * texture(material.specular, TexCoord);
-    return (ambient + diffuse + specular);
+    allAmbient += ambient;
+    return (diffuse + specular);
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
-set(PROJECT_NAME project_base)
+set(PROJECT_NAME RGProject)
 project(${PROJECT_NAME})
 
 function(watch)

@@ -41,6 +41,10 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
 void DrawAirBalloon(Shader &shader, Model &mm, glm::mat4 projection);
 void AirBalloonIdleEvent(GLFWwindow *window);
 
+void renderScene(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos,
+                 std::vector<Model> &statModels, Model &hot_air_balloon, glm::mat4 projection,
+                 GLFWwindow *window);
+
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -77,6 +81,11 @@ struct ProgramState {
     glm::vec3 dirAmbient = glm::vec3(0.54f, 0.54f, 0.5f);
     glm::vec3 dirDiffuse = glm::vec3(0.95f, 0.9f, 0.65f);
     glm::vec3 dirSpecular = glm::vec3(0.3f, 0.3f, 0.3f);
+    // point light for shadows
+    glm::vec3 pointLight = glm::vec3(2.365f, 22.556f, -13.26f);
+    // shadows
+    bool shadows = false;
+    bool disableGrass = true;
 
     ProgramState() = default;
 };
@@ -148,8 +157,11 @@ int main()
     // build and compile shaders
     Shader axisShader("resources/shaders/axisshader.vs", "resources/shaders/axisshader.fs");
     Shader modelShader("resources/shaders/modelshader.vs", "resources/shaders/modelshader.fs");
-    Shader grassPlaneShader("resources/shaders/grassplaneshader.vs", "resources/shaders/grassplaneshader.fs");
+    Shader grassPlaneShader("resources/shaders/modelshader.vs", "resources/shaders/modelshader.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
+    Shader depthShader("resources/shaders/depthshader.vs",
+                       "resources/shaders/depthshader.fs",
+                       "resources/shaders/depthshader.gs");
 
     // models:
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model)
@@ -286,6 +298,29 @@ int main()
     SimpleModel skyboxSModel(skybox_vertices);
     skyboxSModel.AddCubemaps(faces, "skybox", 0, skyboxShader);
 
+    // configure depth map FBO
+    // -----------------------
+    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    unsigned int depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+    // create depth cube map texture
+    unsigned int depthCubemap;
+    glGenTextures(1, &depthCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+    for (unsigned int i = 0; i < 6; ++i)
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    // attach depth texture as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // declare before loop
     glm::mat4 projection;
     glm::mat4 view;
@@ -309,22 +344,55 @@ int main()
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // projection, view
+        // 0. create depth cube map transformation matrices
+        // -----------------------------------------------
+        modelShader.use();
+        modelShader.setBool("shadows", programState->shadows);
+        float near_plane = 1.f;
+        float far_plane  = 40.0f;
+        glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane);
+        std::vector<glm::mat4> shadowTransforms;
+        shadowTransforms.push_back(shadowProj * glm::lookAt(programState->pointLight, programState->pointLight + glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(programState->pointLight, programState->pointLight + glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(programState->pointLight, programState->pointLight + glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(programState->pointLight, programState->pointLight + glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(programState->pointLight, programState->pointLight + glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(programState->pointLight, programState->pointLight + glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f)));
+
+        // 1. render scene to depth cube map
+        // --------------------------------
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        depthShader.use();
+        for (unsigned int i = 0; i < 6; ++i)
+            depthShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+        depthShader.setFloat("far_plane", far_plane);
+        depthShader.setVec3("lightPos", programState->pointLight);
+        programState->disableGrass = true;
+        renderScene(depthShader, grassPlaneSModel, grassSModel, grass_translate,
+                    stationery_models, hot_air_balloon, projection, window);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // 2. render scene as normal
+        // -------------------------
+        glViewport(0, 0, programState->SCR_WIDTH, programState->SCR_HEIGHT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        modelShader.use();
+        modelShader.setInt("depthMap", 15);
+        modelShader.setFloat("far_plane", far_plane);
+        glActiveTexture(GL_TEXTURE15);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+
+        // projection
         projection = glm::perspective(glm::radians(programState->camera->Zoom),
                                       (float)programState->SCR_WIDTH / (float)programState->SCR_HEIGHT, 0.1f, 100.0f);
-        // drawing grass plane model
-        DrawGrassGround(grassPlaneShader, grassPlaneSModel, grassSModel, grass_translate, projection);
-        // set all lights parameters
-        SetLightParameters(modelShader);
-        // drawing other static models
-        DrawAllStationeryModels(stationery_models, modelShader, projection);
-        // drawing balloon model
-        DrawAirBalloon(modelShader, hot_air_balloon, projection);
-        // idle "animation"
-        AirBalloonIdleEvent(window);
+        programState->disableGrass = false;
+        renderScene(modelShader, grassPlaneSModel, grassSModel, grass_translate,
+                    stationery_models, hot_air_balloon, projection, window);
+
         // drawing skybox
         DrawSkybox(skyboxShader, skyboxSModel, projection);
-
         // drawing ImGui windows
         DrawImGuiInfoWindows();
         DrawCVarAndAxis(window, axisShader, axisSModel, axisColor, projection);
@@ -501,6 +569,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if (key == GLFW_KEY_GRAVE_ACCENT && action == GLFW_PRESS)
         programState->isCVars = !programState->isCVars;
+
+    if(key == GLFW_KEY_F1 && action == GLFW_PRESS)
+        programState->shadows = !programState->shadows;
 }
 
 void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projection)
@@ -521,21 +592,23 @@ void DrawGrassGround(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass
     shader.use();
 
     // grass is using custom light parameters because it doesn't have any additional tex maps
-    shader.setVec3("viewPos", programState->camera->Position);
-    shader.setVec3("dirLight.direction", programState->dirLight);
-    shader.setVec3("dirLight.ambient", 1.f, 1.f, 1.f);
-    shader.setVec3("dirLight.diffuse", 1.f, 1.f, 1.f);
-    for(int i=0; i<grassPos.size(); ++i)
+    if(!programState->disableGrass)
     {
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, grassPos[i]);
-        if(i<grassPos.size()/2)
-            model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-        shader.setMat4("model", model);
-        shader.setMat4("projection", projection);
-        shader.setMat4("view", view);
-        grass.Draw(GL_TRIANGLES);
+        shader.setVec3("viewPos", programState->camera->Position);
+        shader.setVec3("dirLight.direction", programState->dirLight);
+        shader.setVec3("dirLight.ambient", 1.f, 1.f, 1.f);
+        shader.setVec3("dirLight.diffuse", 1.f, 1.f, 1.f);
+        for (int i = 0; i < grassPos.size(); ++i) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, grassPos[i]);
+            if (i < grassPos.size() / 2)
+                model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+            shader.setMat4("model", model);
+            shader.setMat4("projection", projection);
+            shader.setMat4("view", view);
+            grass.Draw(GL_TRIANGLES);
+        }
     }
     // ground plane
     SetLightParameters(shader);
@@ -624,11 +697,14 @@ void DrawAllStationeryModels(std::vector<Model> &statModels, Shader &shader, glm
     shader.setMat4("model", model);
     statModels[4].Draw(shader);
     // tree
+    if(!programState->disableGrass)
+    {
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-1.5f, 0.f, 4.f));
     model = glm::scale(model, glm::vec3(0.9f, 0.9f, 0.9f));
     shader.setMat4("model", model);
     statModels[5].Draw(shader);
+    }
 }
 
 void DrawAxis(Shader &shader, const SimpleModel &axisSModel, const std::vector<glm::vec3> &axisColor, glm::mat4 projection)
@@ -780,7 +856,7 @@ void SetLightParameters(Shader &shader) {
         shader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(10.5f)));
     }
 
-    shader.setVec3("pointLight.position", 2.365f, 20.556f, -13.26f);
+    shader.setVec3("pointLight.position", programState->pointLight);
     shader.setVec3("pointLight.ambient", 0.98f, 1.f, 0.2f);
     shader.setVec3("pointLight.diffuse", 0.98f, 1.f, 0.2f);
     shader.setVec3("pointLight.specular", 0.98f, 1.0f, 0.2f);
@@ -827,4 +903,20 @@ void LoadStateSettings(const std::string& mainModel, const std::string& settings
            >> programState->scaleWidth
            >> programState->scaleHeight;
     }
+}
+
+void renderScene(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos,
+                 std::vector<Model> &statModels, Model &hot_air_balloon, glm::mat4 projection,
+                 GLFWwindow *window)
+{
+    // drawing grass plane model
+    DrawGrassGround(shader, grassPlane, grass, grassPos, projection);
+    // set all lights parameters
+    SetLightParameters(shader);
+    // drawing other static models
+    DrawAllStationeryModels(statModels, shader, projection);
+    // drawing balloon model
+    DrawAirBalloon(shader, hot_air_balloon, projection);
+    // idle "animation"
+    AirBalloonIdleEvent(window);
 }
