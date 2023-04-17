@@ -6,7 +6,7 @@
 RGProject
 program_state.txt
 imgui.ini
-save_*.txt
+save.txt
 
 ### bin ###
 bin/

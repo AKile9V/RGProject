@@ -27,8 +27,8 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
-void SaveStateSettings(const std::string& mainModel, const std::string& settings);
-void LoadStateSettings(const std::string& mainModel, const std::string& settings);
+void SaveStateSettings(const std::string& path);
+void LoadStateSettings(const std::string& path);
 
 
 void DrawSkybox(Shader &shader, const SimpleModel &skyboxModel, glm::mat4 projection);
@@ -44,7 +44,9 @@ void AirBalloonIdleEvent(GLFWwindow *window);
 void renderScene(Shader &shader, SimpleModel &grassPlane, SimpleModel &grass, std::vector<glm::vec3> &grassPos,
                  std::vector<Model> &statModels, Model &hot_air_balloon, glm::mat4 projection,
                  GLFWwindow *window);
-
+// window settings
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -63,9 +65,6 @@ struct MainModelState {
 };
 // default program settings
 struct ProgramState {
-    // window settings
-    unsigned int SCR_WIDTH = 800;
-    unsigned int SCR_HEIGHT = 600;
     // camera options
     Camera *camera = nullptr;
     bool firstMouse = true;
@@ -103,7 +102,7 @@ int main()
     tpp_camera = new TPPCamera(glm::vec3(.0f, .0f, 0.f), mainModelState->mmPosition,
                                glm::vec3(0.0f, 1.0f, 0.0f), -90.f, 40.f);
     programState->camera = tpp_camera;
-    LoadStateSettings("save_position.txt", "save_settings.txt");
+    LoadStateSettings("save.txt");
 
     // glfw: initialize and configure
     glfwInit();
@@ -115,8 +114,8 @@ int main()
 #endif
 
     // glfw window creation
-    GLFWwindow *window = glfwCreateWindow(programState->SCR_WIDTH, programState->SCR_HEIGHT,"AirGasBag",
-                                          glfwGetPrimaryMonitor(), NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT,"AirGasBag",
+                                          nullptr, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -376,7 +375,7 @@ int main()
 
         // 2. render scene as normal
         // -------------------------
-        glViewport(0, 0, programState->SCR_WIDTH, programState->SCR_HEIGHT);
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         modelShader.use();
         modelShader.setInt("depthMap", 15);
@@ -386,7 +385,7 @@ int main()
 
         // projection
         projection = glm::perspective(glm::radians(programState->camera->Zoom),
-                                      (float)programState->SCR_WIDTH / (float)programState->SCR_HEIGHT, 0.1f, 100.0f);
+                                      (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         programState->disableGrass = false;
         renderScene(modelShader, grassPlaneSModel, grassSModel, grass_translate,
                     stationery_models, hot_air_balloon, projection, window);
@@ -405,7 +404,7 @@ int main()
         glfwPollEvents();
     }
 
-    SaveStateSettings("save_position.txt", "save_settings.txt");
+    SaveStateSettings("save.txt");
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -804,27 +803,6 @@ void DrawCVarAndAxis(GLFWwindow *window, Shader &shader, const SimpleModel &axis
 
         ImGui::DragFloat("Air Balloon speed", &mainModelState->mmSpeed, 0.1f, 0.1f, 2.f);
 
-        ImGui::Text("Change resolution:\n");
-        if(ImGui::RadioButton("1920x1080", programState->SCR_WIDTH==1920 && programState->SCR_HEIGHT==1080))
-        {
-            programState->SCR_WIDTH = 1920;
-            programState->SCR_HEIGHT = 1080;
-            programState->scaleWidth = programState->SCR_WIDTH/3.0f;
-            programState->scaleHeight = programState->SCR_HEIGHT/1.1f;
-            glfwSetWindowSize(window, programState->SCR_WIDTH, programState->SCR_HEIGHT);
-            programState->lastX = programState->SCR_WIDTH/2.0;
-            programState->lastY = programState->SCR_HEIGHT/2.0;
-        }
-        else if(ImGui::RadioButton("800x600", programState->SCR_WIDTH==800 && programState->SCR_HEIGHT==600))
-        {
-            programState->SCR_WIDTH = 800;
-            programState->SCR_HEIGHT = 600;
-            programState->scaleWidth = programState->SCR_WIDTH/10.0f;
-            programState->scaleHeight = programState->SCR_HEIGHT/1.2f;
-            glfwSetWindowSize(window, programState->SCR_WIDTH, programState->SCR_HEIGHT);
-            programState->lastX = programState->SCR_WIDTH/2.0;
-            programState->lastY = programState->SCR_HEIGHT/2.0;
-        }
         ImGui::End();
     }
     else
@@ -865,43 +843,28 @@ void SetLightParameters(Shader &shader) {
     shader.setFloat("pointLight.quadratic", 0.032);
 }
 
-void SaveStateSettings(const std::string& mainModel, const std::string& settings)
+void SaveStateSettings(const std::string& path)
 {
-    std::ofstream mm(mainModel);
-    std::ofstream s(settings);
+    std::ofstream out(path);
 
-    mm << mainModelState->mmPosition.x << "\n"
+    out << mainModelState->mmPosition.x << "\n"
         << mainModelState->mmPosition.y << "\n"
         << mainModelState->mmPosition.z << "\n"
         << mainModelState->mmSpeed << "\n"
         << mainModelState->mmUp << "\n";
-
-    s << programState->SCR_WIDTH << "\n"
-      << programState->SCR_HEIGHT << "\n"
-      << programState->scaleWidth << "\n"
-      << programState->scaleHeight << "\n";
 }
 
-void LoadStateSettings(const std::string& mainModel, const std::string& settings)
+void LoadStateSettings(const std::string& path)
 {
-    std::ifstream mm(mainModel);
-    std::ifstream s(settings);
+    std::ifstream in(path);
 
-    if(mm)
+    if(in)
     {
-        mm  >> mainModelState->mmPosition.x
+        in  >> mainModelState->mmPosition.x
             >> mainModelState->mmPosition.y
             >> mainModelState->mmPosition.z
             >> mainModelState->mmSpeed
             >> mainModelState->mmUp;
-    }
-
-    if(s)
-    {
-        s  >> programState->SCR_WIDTH
-           >> programState->SCR_HEIGHT
-           >> programState->scaleWidth
-           >> programState->scaleHeight;
     }
 }
 
