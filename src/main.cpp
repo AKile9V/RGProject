@@ -64,8 +64,8 @@ struct MainModelState {
 // default program settings
 struct ProgramState {
     // window settings
-    unsigned int SCR_WIDTH = 1920;
-    unsigned int SCR_HEIGHT = 1080;
+    unsigned int SCR_WIDTH = 800;
+    unsigned int SCR_HEIGHT = 600;
     // camera options
     Camera *camera = nullptr;
     bool firstMouse = true;
@@ -73,8 +73,8 @@ struct ProgramState {
     float lastY = SCR_HEIGHT / 2.0f;
     // imgui options
     bool isCVars = false;
-    float scaleWidth = SCR_WIDTH/3.0f;
-    float scaleHeight = SCR_HEIGHT/1.1f;
+    float scaleWidth = SCR_WIDTH/10.0f;
+    float scaleHeight = SCR_HEIGHT/1.2f;
 
     // Directional Light is in this scenario Sun and its parameters should be the same for all objects on the scene
     glm::vec3 dirLight = glm::vec3(0.1f, -1.2f, 1.f);
