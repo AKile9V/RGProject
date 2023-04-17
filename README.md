@@ -1,7 +1,12 @@
 ## AirGasBag
 
 ### University project for the purpose of the Computer Graphics course.
-Try to fly around and find out some interesting facts about structures around you!
+Try to fly around and find out some interesting facts about structures around you! <br>
+["Gameplay"(VIDEO) Link](https://www.youtube.com/watch?v=niJVVbTmszc)
+<p>
+  <img src="Screenshots/1.png" width="49%"/>
+  <img src="Screenshots/2.png" width="49%"/>
+</p>
 
 ## KEYBINDS:
 `W` - Forward(toward positive Z axis) <br>
@@ -11,6 +16,7 @@ Try to fly around and find out some interesting facts about structures around yo
 `SPACE` - Up <br>
 `SHIFT` - Down <br>
 `~` - Settings (console window) <br>
+`F1` - Enable shadows <br>
 `ESC` - Exit <br>
 ## Mouse:
 `MOUSE` - Rotate the camera <br>
@@ -24,3 +30,5 @@ Try to fly around and find out some interesting facts about structures around yo
    - [x] [Advanced lighting](https://learnopengl.com/Advanced-Lighting/Advanced-Lighting) <br>
 - Group A:
    - [x] [Cubemaps](https://learnopengl.com/Advanced-OpenGL/Cubemaps) <br>
+- Group B:
+   - [x] [Point shadows](https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows) <br>
